@@ -1,7 +1,6 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
 from haversine import haversine_vector, Unit
@@ -38,7 +37,7 @@ def cons_id_grouping(list_):
     if current_bucket:
         buckets.append(current_bucket)
     return buckets
-    
+
 def get_shift_timestamp(date_str):
     datetime_input = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
     input_time = datetime_input.time()
@@ -332,7 +331,7 @@ def ign_not_exist(termid):
             values2=[termid,sample2.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                      len(sample2),
                      sample2['new_time_diff'].max(),sample2.head(1)['currentFuelVolumeTank1'].item(),sample2.tail(1)['currentFuelVolumeTank1'].item(),
-                     ign_cst,sample2['con_cum_distance'].sum(),id_,sample.head(1)['Indicator'].item()]            
+                     ign_cst,sample2['con_cum_distance'].sum(),id_,sample.head(1)['Indicator'].item()]
             temp_dict.update(zip(keys2,values2))
             l.append(temp_dict)
         within_df = pd.DataFrame(l)
@@ -345,10 +344,10 @@ def ign_not_exist(termid):
     ff['start_time'] = pd.to_datetime(ff['start_time'])
     ff['end_time']=pd.to_datetime(ff['end_time'])
 #     ff.drop_duplicates(subset=['end_time'],keep='first',inplace=True)
-    
+
     ff.reset_index(drop=True,inplace=True)
     ff['ign_time_igndata'] = 0
-    
+
     return ff
 
 def final_id_grouping(i):
@@ -357,7 +356,7 @@ def final_id_grouping(i):
         result = ign_exist(i)
     else:
         result = ign_not_exist(i)
-        
+
     return result
 
 
@@ -371,8 +370,8 @@ def additional_parameters(final_df):
     final_df['total_time'] = (final_df['end_time']-final_df['start_time']).dt.total_seconds()/60
     final_df['lph'] = final_df.apply(lambda row: (row['total_cons']/row['total_time'])*60 if row['total_time']>0 else 'NaN', axis=1)
     final_df['avg_speed'] = (final_df['total_dist']/final_df['total_time'])*0.06
-    return final_df 
-    
+    return final_df
+
 def final_threshold_modification(i):
     if i['ID_status']=='id6':
         if abs(int(i['lph']))<10:
@@ -412,29 +411,29 @@ if __name__ == '__main__':
         ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1['termid'].unique().tolist()
-        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:10])])   
-        final_df1 = additional_parameters(final_df)
-        final_df_dict=final_df1.to_dict('records')
-        final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
-
-        if len(sys.argv) == 3:
-            final_df2.to_csv('Enriched_cst_ID_event.csv')
-            print('ID Data saved successfully into your Working Directory.')
-        elif len(sys.argv) == 4:
-            outfile1 = Path(sys.argv[3])
-            # print(str(outfile1).split('\\')[-1])
-            # outfile2 = Path(sys.argv[4])
-            # if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
-            #   print('OutputFilesFormatError: Need to write outputs to CSV files only\nExiting....')
-            #   sys.exit(0)
-            # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
-            #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
-            #   sys.exit(0)
-            
-            final_df2.to_csv(outfile1)
-            # final_df1.to_csv(outfile2)
-            print(f' ID data is successfully saved to below path: \n{outfile1}.')
-        # Check for extra args
-        else:
-            print('Supports atleast 1 or 2 file arguments.')
-    
+        print(final_id_grouping(1204000244))
+        # final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:10])])
+        # final_df1 = additional_parameters(final_df)
+        # final_df_dict=final_df1.to_dict('records')
+        # final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
+        #
+        # if len(sys.argv) == 3:
+        #     final_df2.to_csv('Enriched_cst_ID_event.csv')
+        #     print('ID Data saved successfully into your Working Directory.')
+        # elif len(sys.argv) == 4:
+        #     outfile1 = Path(sys.argv[3])
+        #     # print(str(outfile1).split('\\')[-1])
+        #     # outfile2 = Path(sys.argv[4])
+        #     # if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
+        #     #   print('OutputFilesFormatError: Need to write outputs to CSV files only\nExiting....')
+        #     #   sys.exit(0)
+        #     # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
+        #     #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
+        #     #   sys.exit(0)
+        #
+        #     final_df2.to_csv(outfile1)
+        #     # final_df1.to_csv(outfile2)
+        #     print(f' ID data is successfully saved to below path: \n{outfile1}.')
+        # # Check for extra args
+        # else:
+        #     print('Supports atleast 1 or 2 file arguments.')
