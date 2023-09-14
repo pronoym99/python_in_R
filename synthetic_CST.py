@@ -283,7 +283,7 @@ if __name__ == '__main__':
       if infile_cst.suffix == '.RDS':
           cst = pyreadr.read_r(infile_cst)[None]
           cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-          
+
       else:
           cst = pd.read_csv(infile_cst)
         #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
@@ -316,7 +316,7 @@ if __name__ == '__main__':
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
-      print(ign['strt'].min(),ign['end'].max())
+      # print(ign['strt'].min(),ign['end'].max())
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
     #   print(disp_cst.head())
     #   print(disp_cst.tail())
@@ -332,9 +332,9 @@ if __name__ == '__main__':
     #   print(termid_list[4:])
     #   print(new_cst.query("termid in termid_list[4:6]"))
       new_cst_1=grouped.progress_apply(custom_function)
-      print(new_cst_1.columns,new_cst_1.head())
-      new_cst_1=new_cst_1.reset_index(drop=True)    
-      new_cst_1['date'] = new_cst_1['ts'].dt.date 
+      # print(new_cst_1.columns,new_cst_1.head())
+      new_cst_1=new_cst_1.reset_index(drop=True)
+      new_cst_1['date'] = new_cst_1['ts'].dt.date
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
     #   print(len(new_cst_1))
 
