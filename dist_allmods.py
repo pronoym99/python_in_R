@@ -328,13 +328,14 @@ if __name__ == '__main__':
       infile_cst, infile_igtn = Path(sys.argv[1]), Path(sys.argv[2])
 
       # Check validity of both args at once
-      if infile_cst.suffix == infile_igtn.suffix != '.RDS':
-        print('Only RDS files applicable as input\nExiting....')
-        sys.exit(0)
-
-      df = pyreadr.read_r(infile_cst)[None]
-      ign = pyreadr.read_r(infile_igtn)[None]
-
+      if infile_cst.suffix == '.RDS':
+        df = pyreadr.read_r(infile_cst)[None]
+      else:
+        df = pd.read_csv(infile_cst)
+      if infile_igtn.suffix == '.RDS':
+        ign = pyreadr.read_r(infile_igtn)[None]
+      else:
+        ign = pd.read_csv(infile_igtn)
       # df['ts'] = pd.to_datetime(df['ts'], utc=True)
       df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
