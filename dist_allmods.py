@@ -133,7 +133,7 @@ def ign_time_cst(a,b):
 
 
 def dist_allmods(i):
-
+    if np.isnan(i): return
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
@@ -336,7 +336,7 @@ if __name__ == '__main__':
       ign = pyreadr.read_r(infile_igtn)[None]
 
       # df['ts'] = pd.to_datetime(df['ts'], utc=True)
-      df['ts'] = df['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
       df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
@@ -347,33 +347,34 @@ if __name__ == '__main__':
       # ign['strt'] = pd.to_datetime(ign['strt'], utc=True)
       ign.rename(columns={'stop':'end'}, inplace=True)
       # ign['end'] = pd.to_datetime(ign['end'], utc=True)
-      ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['termid'] = ign['termid'].astype(int)
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
       integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
       integrated_df.reset_index(drop=True, inplace=True)
-      integrated_df = final_data_f(integrated_df)
       grouped = integrated_df.groupby('termid')
       integrated_df = grouped.progress_apply(custom_function)
       integrated_df=integrated_df.reset_index(drop=True)
+      integrated_df = final_data_f(integrated_df)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
-      integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
+      if 'b_sl' in integrated_df.columns:
+        integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
-    #   if len(sys.argv) == 3:
-    #     integrated_df.to_csv('Integrated_dist_allmods.csv')
-    #     print('Data saved successfully to the above path')
+      if len(sys.argv) == 3:
+        integrated_df.to_csv('Integrated_dist_allmods.csv')
+        print('Data saved successfully to the above path')
 
-    #   # Check whether the last arg is appropriate
-    #   elif len(sys.argv) == 4:
-    #     outfile = Path(sys.argv[3])
-    #     if outfile.suffix != '.csv':
-    #       print('Need to write output to a CSV file only\nExiting....')
-    #       sys.exit(0)
-    #     integrated_df.to_csv(outfile)
-    #     print(f'Data saved successfully to {outfile}')
+      # Check whether the last arg is appropriate
+      elif len(sys.argv) == 4:
+        outfile = Path(sys.argv[3])
+        if outfile.suffix != '.csv':
+          print('Need to write output to a CSV file only\nExiting....')
+          sys.exit(0)
+        integrated_df.to_csv(outfile)
+        print(f'Data saved successfully to {outfile}')
 
-    #   # Check for extra args
-    #   else:
-    #     print('Supports atleast 2 and atmost 3 file arguments')
+      # Check for extra args
+      else:
+        print('Supports atleast 2 and atmost 3 file arguments')
