@@ -336,7 +336,7 @@ if __name__ == '__main__':
       ign = pyreadr.read_r(infile_igtn)[None]
 
       # df['ts'] = pd.to_datetime(df['ts'], utc=True)
-      df['ts'] = df['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
       df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
@@ -347,8 +347,8 @@ if __name__ == '__main__':
       # ign['strt'] = pd.to_datetime(ign['strt'], utc=True)
       ign.rename(columns={'stop':'end'}, inplace=True)
       # ign['end'] = pd.to_datetime(ign['end'], utc=True)
-      ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['termid'] = ign['termid'].astype(int)
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
