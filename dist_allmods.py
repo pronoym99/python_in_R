@@ -336,17 +336,18 @@ if __name__ == '__main__':
       else:
         ign = pd.read_csv(infile_igtn)
       # df['ts'] = pd.to_datetime(df['ts'], utc=True)
-      df.dropna(subset=['termid', 'latitude', 'longitude'], inplace=True)
+      # print(df.columns)
+      df.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
       df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
-      df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+      # df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
       faulty_fuel = df[df['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       df = df[~df['regNumb'].isin(faulty_fuel)]
       termid_list = df['termid'].unique().tolist()
 
       # ign['strt'] = pd.to_datetime(ign['strt'], utc=True)
-      ign.rename(columns={'stop':'end'}, inplace=True)
+      # ign.rename(columns={'stop':'end'}, inplace=True)
       # ign['end'] = pd.to_datetime(ign['end'], utc=True)
       ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
