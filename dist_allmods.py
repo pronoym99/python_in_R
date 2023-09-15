@@ -133,7 +133,6 @@ def ign_time_cst(a,b):
 
 
 def dist_allmods(i):
-    if np.isnan(i): return
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
     term_df['shift'] = term_df['hour'].apply(categorize_shift)
@@ -337,6 +336,7 @@ if __name__ == '__main__':
       else:
         ign = pd.read_csv(infile_igtn)
       # df['ts'] = pd.to_datetime(df['ts'], utc=True)
+      df.dropna(subset=['termid', 'latitude', 'longitude'], inplace=True)
       df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
