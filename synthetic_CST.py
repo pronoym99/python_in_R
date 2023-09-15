@@ -316,7 +316,7 @@ if __name__ == '__main__':
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
-      print(ign['strt'].min(),ign['end'].max())
+    #   print(ign['strt'].min(),ign['end'].max())
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
     #   print(disp_cst.head())
     #   print(disp_cst.tail())
