@@ -282,8 +282,8 @@ if __name__ == '__main__':
         sys.exit(0)
       if infile_cst.suffix == '.RDS':
           cst = pyreadr.read_r(infile_cst)[None]
-          cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-
+          cst['ts'] = pd.to_datetime(cst['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+          
       else:
           cst = pd.read_csv(infile_cst)
         #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
@@ -295,13 +295,11 @@ if __name__ == '__main__':
       cst = cst[~cst['regNumb'].isin(faulty_fuel)]
       start_time = cst['ts'].min();end_time=cst['ts'].max()
       ign.rename(columns={'stop':'end'}, inplace=True)
-      ign['strt'] = ign['strt'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      ign['end'] = ign['end'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign = ign[(ign['strt']>=cst['ts'].min())&(ign['end']<=cst['ts'].max())]
       ign['termid'] = ign['termid'].astype(int)
       ign = ign[['termid','veh','strt','end']]
-    #   termid_list = cst[cst['termid'].isin(ign['termid'])]['termid'].unique().tolist()
-    #   regNumb_list = cst[cst['termid'].isin(ign['termid'])]['regNumb'].unique().tolist()
       termid_list = cst['termid'].unique().tolist()
       regNumb_list = cst['regNumb'].unique().tolist()
       disp = pd.read_csv(disp)
@@ -316,33 +314,22 @@ if __name__ == '__main__':
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
-    #   print(ign['strt'].min(),ign['end'].max())
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
-    #   print(disp_cst.head())
-    #   print(disp_cst.tail())
       disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
-    #   print(disp_cst1.head())
       disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
-    # #   else:
-    # #   disp_cst2 = cst.copy()
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
-    #   print(termid_list[4:])
-    #   print(new_cst.query("termid in termid_list[4:6]"))
       new_cst_1=grouped.progress_apply(custom_function)
-      # print(new_cst_1.columns,new_cst_1.head())
-      new_cst_1=new_cst_1.reset_index(drop=True)
-      new_cst_1['date'] = new_cst_1['ts'].dt.date
+      new_cst_1=new_cst_1.reset_index(drop=True)    
+      new_cst_1['date'] = new_cst_1['ts'].dt.date 
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
-    #   print(len(new_cst_1))
 
 
     # Error Logging for Output Files
       if len(sys.argv) == 4:
         new_cst_1.to_csv('New_Synthetic_CST.csv')
-        # final_df1.to_csv('ID_event_data.csv')
         print('Data saved successfully into your Working Directory.')
     #   elif len(sys.argv)==5:
     #       print('FileArgumentsError: Kindly put 4 file arguments. There are 3.\nExiting....')
