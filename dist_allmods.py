@@ -215,6 +215,7 @@ def dist_allmods(i):
                 temp_dict={}
                 sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
                 sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+                sample2.loc[0,'new_distance']=0
                 ign_cst = ign_time_cst(sample2['currentIgn'].tolist(),sample2['new_time_diff'].tolist())
                 b_df = term_df[term_df['ts']<pd.to_datetime(sample_list[k][0])]
                 a_df = term_df[term_df['ts']>pd.to_datetime(sample_list[k][1])]
@@ -224,14 +225,15 @@ def dist_allmods(i):
                 else:
                     b_sl=0;b_st=0;a_el=0;a_et=0
                 keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
-                'b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et','ign_time_cst']
+                'b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et','ign_time_cst','total_dist']
                 values2=[i,sample.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                          len(sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]),
                          sample2['new_time_diff'].max(),fuel_inter[k][0],fuel_inter[k][1],
                          b_sl,b_st,term_df[term_df['ts']>pd.to_datetime(sample_list[k][0])].head(1)['currentFuelVolumeTank1'].item(),
                          term_df[term_df['ts']>pd.to_datetime(sample_list[k][0])].head(1)['ts'].item(),
                          term_df[term_df['ts']<pd.to_datetime(sample_list[k][1])].tail(1)['currentFuelVolumeTank1'].item(),
-                         term_df[term_df['ts']<pd.to_datetime(sample_list[k][1])].tail(1)['ts'].item(),a_el,a_et,ign_cst]
+                         term_df[term_df['ts']<pd.to_datetime(sample_list[k][1])].tail(1)['ts'].item(),a_el,a_et,ign_cst,
+                         sample2['new_distance'].sum()]
                 temp_dict.update(zip(keys2,values2))
                 l.append(temp_dict)
             within_df = pd.DataFrame(l)
@@ -337,11 +339,11 @@ if __name__ == '__main__':
         ign = pd.read_csv(infile_igtn)
       # df['ts'] = pd.to_datetime(df['ts'], utc=True)
       # print(df.columns)
+      df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
       df.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
       df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
-      # df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
       faulty_fuel = df[df['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       df = df[~df['regNumb'].isin(faulty_fuel)]
       termid_list = df['termid'].unique().tolist()
