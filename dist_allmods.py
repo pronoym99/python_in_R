@@ -96,16 +96,20 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
 
     step_size = (end_level - initial_level) / total_time
     in_list = increments_list.copy()
-    in_list.pop(-1)
-    buckets = []
-    for increment in in_list:
-        bucket_time = (pd.to_datetime(increment[1])-pd.to_datetime(increment[0])).total_seconds()/60
-        bucket_start = initial_level
-        bucket_end = initial_level + (bucket_time * step_size)
-        buckets.append((bucket_start, bucket_end))
-        initial_level = bucket_end
-    buckets.append((buckets[-1][1], end_level))
-    return buckets
+    buckets=[]
+    if len(in_list)==1:
+        buckets.append((initial_level,end_level))
+        return buckets
+    else:
+        in_list.pop(-1)
+        for increment in in_list:
+            bucket_time = (pd.to_datetime(increment[1])-pd.to_datetime(increment[0])).total_seconds()/60
+            bucket_start = initial_level
+            bucket_end = initial_level + (bucket_time * step_size)
+            buckets.append((bucket_start, bucket_end))
+            initial_level = bucket_end
+        buckets.append((buckets[-1][1], end_level))
+        return buckets
 
 def ign_time_cst(a,b):
     # a = ignstatus column ;  b = Time difference column
