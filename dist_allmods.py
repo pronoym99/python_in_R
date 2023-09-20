@@ -133,9 +133,6 @@ def ign_time_cst(a,b):
         ign_time=ign_time+s
     return ign_time
 
-# df = pd.read_csv('data/cst_all_copy.csv', parse_dates=['ts'], infer_datetime_format=True)
-
-
 def dist_allmods(i):
     term_df = df[df['termid']==i]
     term_df=term_df.reset_index(drop=True)
@@ -263,6 +260,7 @@ def dist_allmods(i):
     sleep(.00001)
 
     return ff
+
 
 # ign = pd.read_csv('data/dtignmast.csv', parse_dates=['strt','end'])
 
