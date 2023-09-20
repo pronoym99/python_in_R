@@ -359,6 +359,8 @@ if __name__ == '__main__':
       integrated_df=integrated_df.reset_index(drop=True)
       integrated_df = final_data_f(integrated_df)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
+      integrated_df['start_time_epoch'] = (integrated_df['start_time'] - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
+      integrated_df['end_time_epoch'] = (integrated_df['end_time'] - pd.Timestamp("1970-01-01")) // pd.Timedelta('1s')
       if 'b_sl' in integrated_df.columns:
         integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
