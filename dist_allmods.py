@@ -323,7 +323,7 @@ def print_eda(datam):
     datam['tottime_stop'] = datam.apply(lambda row: row['total_time'] if row['status']=='stationary' else 0,axis=1)
     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['status']=='stationary' else 0,axis=1)
     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['status']=='movement' else 0,axis=1)
-    print_eda=ch.groupby(['reg_numb','date']).agg({'totdist_move':'sum','total_time':'sum','final_ign_time':'sum','tottime_move':'sum','tottime_stop':'sum','tottime_stop_ign_on':'sum'}).reset_index()
+    print_eda=datam.groupby(['reg_numb','date']).agg({'totdist_move':'sum','total_time':'sum','final_ign_time':'sum','tottime_move':'sum','tottime_stop':'sum','tottime_stop_ign_on':'sum'}).reset_index()
     print_eda.rename(columns={'date':'date1','totdist_move':'km_dist','total_time':'hours_timespan','final_ign_time':'hours_ign_on','tottime_move':'hours_move','tottime_stop':'hours_idle','tottime_stop_ign_on':'hours_idle_on'},inplace=True)
     print_eda['km_dist'] = print_eda['km_dist']/1000
     print_eda[['hours_timespan','hours_ign_on','hours_move','hours_idle','hours_idle_on']] /=60
