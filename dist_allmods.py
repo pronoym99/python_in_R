@@ -315,23 +315,53 @@ def select_ign_time(row):
     else:
         return row['ign_time_ignMaster']
     
-def print_eda(datam):
-    datam['date'] = datam['start_time'].dt.date
+# def print_eda(datam):
+#     datam['date'] = datam['start_time'].dt.date
+#     start_time = pd.to_datetime('22:00:00').time()
+#     datam['date'] = datam.apply(lambda row: row['date'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+#     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['status']=='movement' else 0,axis=1)
+#     datam['tottime_stop'] = datam.apply(lambda row: row['total_time'] if row['status']=='stationary' else 0,axis=1)
+#     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['status']=='stationary' else 0,axis=1)
+#     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['status']=='movement' else 0,axis=1)
+#     print_eda=datam.groupby(['reg_numb','date']).agg({'totdist_move':'sum','total_time':'sum','final_ign_time':'sum','tottime_move':'sum','tottime_stop':'sum','tottime_stop_ign_on':'sum'}).reset_index()
+#     print_eda.rename(columns={'date':'date1','totdist_move':'km_dist','total_time':'hours_timespan','final_ign_time':'hours_ign_on','tottime_move':'hours_move','tottime_stop':'hours_idle','tottime_stop_ign_on':'hours_idle_on'},inplace=True)
+#     print_eda['km_dist'] = print_eda['km_dist']/1000
+#     print_eda[['hours_timespan','hours_ign_on','hours_move','hours_idle','hours_idle_on']] /=60
+#     print_eda['hours_idle_off'] = print_eda['hours_idle']-print_eda['hours_idle_on']
+#     print_eda['idle_pct'] = print_eda['hours_idle']/print_eda['hours_timespan']
+#     print_eda['idleon_pct'] = print_eda['hours_idle_on']/print_eda['hours_idle']
+#     print_eda['mach_util_pct'] = print_eda['hours_ign_on']/print_eda['hours_timespan']
+#     return print_eda
+
+desired_order = ['C', 'A', 'B']
+def shift_order(x):
+    return pd.Categorical(x, categories=desired_order, ordered=True)
+
+def fresh_summary(datam):
+    datam['date1'] = datam['start_time'].dt.date
     start_time = pd.to_datetime('22:00:00').time()
-    datam['date'] = datam.apply(lambda row: row['date'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+    datam['date1'] = datam.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['status']=='movement' else 0,axis=1)
-    datam['tottime_stop'] = datam.apply(lambda row: row['total_time'] if row['status']=='stationary' else 0,axis=1)
     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['status']=='stationary' else 0,axis=1)
     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['status']=='movement' else 0,axis=1)
-    print_eda=datam.groupby(['reg_numb','date']).agg({'totdist_move':'sum','total_time':'sum','final_ign_time':'sum','tottime_move':'sum','tottime_stop':'sum','tottime_stop_ign_on':'sum'}).reset_index()
-    print_eda.rename(columns={'date':'date1','totdist_move':'km_dist','total_time':'hours_timespan','final_ign_time':'hours_ign_on','tottime_move':'hours_move','tottime_stop':'hours_idle','tottime_stop_ign_on':'hours_idle_on'},inplace=True)
-    print_eda['km_dist'] = print_eda['km_dist']/1000
-    print_eda[['hours_timespan','hours_ign_on','hours_move','hours_idle','hours_idle_on']] /=60
-    print_eda['hours_idle_off'] = print_eda['hours_idle']-print_eda['hours_idle_on']
-    print_eda['idle_pct'] = print_eda['hours_idle']/print_eda['hours_timespan']
-    print_eda['idleon_pct'] = print_eda['hours_idle_on']/print_eda['hours_idle']
-    print_eda['mach_util_pct'] = print_eda['hours_ign_on']/print_eda['hours_timespan']
-    return print_eda
+    datam['totdist_stop'] = datam.apply(lambda row: row['total_dist'] if row['status']=='stationary' else 0,axis=1)
+    datam['totfuel_stop'] = datam.apply(lambda row: row['total_cons'] if row['status']=='stationary' and row['total_cons']>-10 else 0,axis=1)
+    datam['totfuel_move'] = datam.apply(lambda row: row['total_cons'] if row['status']=='movement'and row['total_cons']>-10 else 0,axis=1)
+    datam['hour'] = datam['start_time'].dt.hour
+    datam['shift1'] = datam['hour'].progress_apply(categorize_shift)
+    fresh_summary=datam.groupby(['reg_numb','date1','shift1']).agg({'termid':'first','total_obs':'count','totdist_move':'sum','totdist_stop':'sum','tottime_move':'sum','tottime_stop_ign_on':'sum','totfuel_stop':'sum','totfuel_move':'sum','ign_time_ignMaster':'sum','final_ign_time':'sum','total_time':'sum'}).reset_index()
+    fresh_summary.rename(columns={'total_obs':'N','ign_time_ignMaster':'tottime_ignevent_on','final_ign_time':'tottime_ign_on','total_time':'tottime_span'},inplace=True)
+    fresh_summary['tottime_stop'] = fresh_summary['tottime_span'] - fresh_summary['tottime_move']
+    fresh_summary['tottime_move_ign_on'] = fresh_summary['tottime_ign_on'] - fresh_summary['tottime_stop_ign_on']
+    fresh_summary['tottime_stop_ign_off'] = fresh_summary['tottime_stop'] - fresh_summary['tottime_stop_ign_on']
+    fresh_summary['idle_pct'] = fresh_summary['tottime_stop']/fresh_summary['tottime_span']
+    fresh_summary['move_pct'] = fresh_summary['tottime_move']/fresh_summary['tottime_span']
+    fresh_summary['ignon_move_pct'] = fresh_summary['tottime_move_ign_on']/fresh_summary['tottime_move']
+    fresh_summary['ignon_idle_pct'] = fresh_summary['tottime_stop_ign_on']/fresh_summary['tottime_stop']
+    fresh_summary['idle_ignon_pct'] = fresh_summary['tottime_stop_ign_on']/fresh_summary['tottime_ign_on']
+    fresh_summary['shift1'] = fresh_summary.groupby(['reg_numb', 'date1'])['shift1'].transform(shift_order)
+    fresh_summary = fresh_summary.sort_values(by=['reg_numb', 'date1', 'shift1']).reset_index(drop=True)
+    return fresh_summary
 
 
 if __name__ == '__main__':
@@ -380,7 +410,7 @@ if __name__ == '__main__':
       integrated_df=integrated_df.reset_index(drop=True)
       integrated_df = final_data_f(integrated_df)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
-      print_eda_df = print_eda(integrated_df)
+      fresh_summary_df = fresh_summary(integrated_df)
       integrated_df['start_time'] = (integrated_df['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       integrated_df['end_time'] = (integrated_df['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       if 'b_sl' in integrated_df.columns:
@@ -388,7 +418,7 @@ if __name__ == '__main__':
 
       if len(sys.argv) == 3:
         integrated_df.to_csv('Integrated_dist_allmods.csv')
-        print_eda_df.to_csv('print_eda.csv')
+        fresh_summary_df.to_csv('print_eda.csv')
         print('Data saved successfully to the above path')
 
       # Check whether the last arg is appropriate
@@ -399,7 +429,7 @@ if __name__ == '__main__':
           print('Need to write both outputs to a CSV file only\nExiting....')
           sys.exit(0)
         integrated_df.to_csv(outfile1)
-        print_eda_df.to_csv(outfile2)
+        fresh_summary_df.to_csv(outfile2)
         print(f'Outputs saved successfully to below paths \n {outfile1} & {outfile2}')
 
       # Check for extra args
