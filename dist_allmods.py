@@ -338,9 +338,9 @@ def shift_order(x):
     return pd.Categorical(x, categories=desired_order, ordered=True)
 
 def fresh_summary(datam):
-    datam['date1'] = datam['start_time'].dt.date
-    start_time = pd.to_datetime('22:00:00').time()
-    datam['date1'] = datam.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+    # datam['date1'] = datam['start_time'].dt.date
+    # start_time = pd.to_datetime('22:00:00').time()
+    # datam['date1'] = datam.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['status']=='movement' else 0,axis=1)
     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['status']=='stationary' else 0,axis=1)
     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['status']=='movement' else 0,axis=1)
@@ -410,6 +410,9 @@ if __name__ == '__main__':
       integrated_df=integrated_df.reset_index(drop=True)
       integrated_df = final_data_f(integrated_df)
       integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
+      integrated_df['date1'] = integrated_df['start_time'].dt.date
+      start_time = pd.to_datetime('22:00:00').time()
+      integrated_df['date1'] = integrated_df.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
       fresh_summary_df = fresh_summary(integrated_df)
       integrated_df['start_time'] = (integrated_df['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       integrated_df['end_time'] = (integrated_df['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
