@@ -23,6 +23,13 @@ pd.set_option('display.max_rows', 150)
 from multiprocess import cpu_count
 # import gspread
 
+def categorize_shift(hour: int) -> str:
+    if 6 <= hour < 14:
+        return 'A'
+    elif 14 <= hour < 22:
+        return 'B'
+    return 'C'
+
 def cons_id_grouping(list_):
     buckets = []
     current_bucket = []
@@ -367,6 +374,60 @@ def final_threshold_modification(i):
         pass
     return i
 
+def select_ign_time(row):
+    if not row['total_time']:
+        return np.nan
+    if ((row['ign_time_igndata']/row['total_time'])*100 == 100)or((row['ign_time_igndata']/row['total_time'])*100 == 0):
+        return row['ign_cst']
+    else:
+        return row['ign_cst']
+
+    # def print_eda(datam):
+    #     datam['date'] = datam['start_time'].dt.date
+    #     start_time = pd.to_datetime('22:00:00').time()
+    #     datam['date'] = datam.apply(lambda row: row['date'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+    #     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['ID_status'] in  else 0,axis=1)
+    #     datam['tottime_stop'] = datam.apply(lambda row: row['total_time'] if row['status']=='stationary' else 0,axis=1)
+    #     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['status']=='stationary' else 0,axis=1)
+    #     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['status']=='movement' else 0,axis=1)
+    #     print_eda=datam.groupby(['reg_numb','date']).agg({'totdist_move':'sum','total_time':'sum','final_ign_time':'sum','tottime_move':'sum','tottime_stop':'sum','tottime_stop_ign_on':'sum'}).reset_index()
+    #     print_eda.rename(columns={'date':'date1','totdist_move':'km_dist','total_time':'hours_timespan','final_ign_time':'hours_ign_on','tottime_move':'hours_move','tottime_stop':'hours_idle','tottime_stop_ign_on':'hours_idle_on'},inplace=True)
+    #     print_eda['km_dist'] = print_eda['km_dist']/1000
+    #     print_eda[['hours_timespan','hours_ign_on','hours_move','hours_idle','hours_idle_on']] /=60
+    #     print_eda['hours_idle_off'] = print_eda['hours_idle']-print_eda['hours_idle_on']
+    #     print_eda['idle_pct'] = print_eda['hours_idle']/print_eda['hours_timespan']
+    #     print_eda['idleon_pct'] = print_eda['hours_idle_on']/print_eda['hours_idle']
+    #     print_eda['mach_util_pct'] = print_eda['hours_ign_on']/print_eda['hours_timespan']
+    #     return print_eda
+
+desired_order = ['C', 'A', 'B']
+def shift_order(x):
+    return pd.Categorical(x, categories=desired_order, ordered=True)
+
+def fresh_summary(datam):
+    datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['veh_status']=='movement' else 0,axis=1)
+    datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['veh_status']=='stationary' else 0,axis=1)
+    datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['veh_status']=='movement' else 0,axis=1)
+    datam['totdist_stop'] = datam.apply(lambda row: row['total_dist'] if row['veh_status']=='stationary' else 0,axis=1)
+    datam['totfuel_stop'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='stationary' and row['total_cons']>-10 else 0,axis=1)
+    datam['totfuel_move'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='movement'and row['total_cons']>-10 else 0,axis=1)
+    datam['hour'] = datam['start_time'].dt.hour
+    datam['shift1'] = datam['hour'].progress_apply(categorize_shift)
+    fresh_summary=datam.groupby(['regNumb','date1','shift1']).agg({'termid':'first','total_obs':'count','totdist_move':'sum','totdist_stop':'sum','tottime_move':'sum','tottime_stop_ign_on':'sum','totfuel_stop':'sum','totfuel_move':'sum','ign_time_igndata':'sum','final_ign_time':'sum','total_time':'sum'}).reset_index()
+    fresh_summary.rename(columns={'total_obs':'N','ign_time_igndata':'tottime_ignevent_on','final_ign_time':'tottime_ign_on','total_time':'tottime_span'},inplace=True)
+    fresh_summary['tottime_stop'] = fresh_summary['tottime_span'] - fresh_summary['tottime_move']
+    fresh_summary['tottime_move_ign_on'] = fresh_summary['tottime_ign_on'] - fresh_summary['tottime_stop_ign_on']
+    fresh_summary['tottime_stop_ign_off'] = fresh_summary['tottime_stop'] - fresh_summary['tottime_stop_ign_on']
+    fresh_summary['idle_pct'] = fresh_summary['tottime_stop']/fresh_summary['tottime_span']
+    fresh_summary['move_pct'] = fresh_summary['tottime_move']/fresh_summary['tottime_span']
+    fresh_summary['ignon_move_pct'] = fresh_summary['tottime_move_ign_on']/fresh_summary['tottime_move']
+    fresh_summary['ignon_idle_pct'] = fresh_summary['tottime_stop_ign_on']/fresh_summary['tottime_stop']
+    fresh_summary['idle_ignon_pct'] = fresh_summary['tottime_stop_ign_on']/fresh_summary['tottime_ign_on']
+    fresh_summary['shift1'] = fresh_summary.groupby(['regNumb', 'date1'])['shift1'].transform(shift_order)
+    fresh_summary = fresh_summary.sort_values(by=['regNumb', 'date1', 'shift1']).reset_index(drop=True)
+    return fresh_summary
+
+
 
 if __name__ == '__main__':
 
@@ -377,6 +438,8 @@ if __name__ == '__main__':
         enriched_cst,ign_file = Path(sys.argv[1]),Path(sys.argv[2])
 
         new_cst_1 = pd.read_csv(enriched_cst)
+        new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-01 21:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-03 23:00:00'))]
         ign = pyreadr.read_r(ign_file)[None]
         ign.rename(columns={'stop':'end'},inplace=True)
         ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
@@ -384,17 +447,27 @@ if __name__ == '__main__':
         ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
 
-        termid_list = new_cst_1['termid'].unique().tolist()
-        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:10])])
+        termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()   
+        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
+        final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)
+        final_df2['date1'] = final_df2['start_time'].dt.date
+        start_time = pd.to_datetime('22:00:00').time()
+        final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+        final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
+        fresh_summary_df = fresh_summary(final_df2)
+        final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
+        final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         
         if len(sys.argv) == 3:
-            final_df2.to_csv('Enriched_cst_ID_event.csv')
+            final_df2.to_csv('ID_event_data.csv')
+            fresh_summary_df.to_csv('ID_fresh_summary.csv')
             print('ID Data saved successfully into your Working Directory.')
         elif len(sys.argv) == 4:
-            outfile1 = Path(sys.argv[3])
+            print('OutPutFileError: Kindly pass two Output File Paths for Id_event data followed by the Fresh Summary in csv format\nExiting...')
+            sys.exit(0)
             # print(str(outfile1).split('\\')[-1])
             # outfile2 = Path(sys.argv[4])
             # if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
@@ -403,10 +476,16 @@ if __name__ == '__main__':
             # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
             #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
             #   sys.exit(0)
-        
-            final_df2.to_csv(outfile1)
             # final_df1.to_csv(outfile2)
-            print(f' ID data is successfully saved to below path: \n{outfile1}.')
+        elif len(sys.argv)==5:
+            outfile1 = Path(sys.argv[3])
+            outfile2 = Path(sys.argv[4])
+            if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
+                print('Need to write both outputs to CSV files only\nExiting....')
+                sys.exit(0)
+            final_df2.to_csv(outfile1)
+            fresh_summary_df.to_csv(outfile2)
+            print(f' ID data folowed by fresh summary data are successfully saved to below path\n {outfile1}&{outfile2}.')
         # Check for extra args
         else:
             print('Supports atleast 1 or 2 file arguments.')

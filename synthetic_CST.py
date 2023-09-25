@@ -271,7 +271,7 @@ if __name__ == '__main__':
     # print(sys.argv[0],sys.argv[1])
     num_cores = cpu_count()
     if len(sys.argv) < 4:
-      print('InputFilesError: You need to provide the path of RDS cst and ign files and Hectronic csv as input.\nCST data followed by ignition data followed by Hectronics Dispense Data.\nExiting....')
+      print('InputFilesError: You need to provide the path of RDS cst/ign files and Hectronic csv as input.\nCST data followed by ignition data followed by Hectronics Dispense Data.\nExiting....')
       sys.exit(0)
     else:
       infile_cst, infile_igtn,disp = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
@@ -289,7 +289,8 @@ if __name__ == '__main__':
         #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
           cst['ts'] = pd.to_datetime(cst['ts'])
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
-      cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+    #   cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+      cst.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
       ign = pyreadr.read_r(infile_igtn)[None]
       faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       cst = cst[~cst['regNumb'].isin(faulty_fuel)]
@@ -325,6 +326,7 @@ if __name__ == '__main__':
       new_cst_1=new_cst_1.reset_index(drop=True)    
       new_cst_1['date'] = new_cst_1['ts'].dt.date 
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
+      new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
 
 
     # Error Logging for Output Files

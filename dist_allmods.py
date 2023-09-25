@@ -421,7 +421,7 @@ if __name__ == '__main__':
 
       if len(sys.argv) == 3:
         integrated_df.to_csv('Integrated_dist_allmods.csv')
-        fresh_summary_df.to_csv('print_eda.csv')
+        fresh_summary_df.to_csv('fresh_summary.csv')
         print('Data saved successfully to the above path')
 
       # Check whether the last arg is appropriate
