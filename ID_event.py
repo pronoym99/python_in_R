@@ -424,8 +424,8 @@ def fresh_summary(datam):
     fresh_summary['ignon_move_pct'] = fresh_summary['tottime_move_ign_on']/fresh_summary['tottime_move']
     fresh_summary['ignon_idle_pct'] = fresh_summary['tottime_stop_ign_on']/fresh_summary['tottime_stop']
     fresh_summary['idle_ignon_pct'] = fresh_summary['tottime_stop_ign_on']/fresh_summary['tottime_ign_on']
-    fresh_summary['shift1'] = fresh_summary.groupby(['regNumb', 'date1'])['shift1'].transform(shift_order)
-    fresh_summary = fresh_summary.sort_values(by=['regNumb', 'date1', 'shift1']).reset_index(drop=True)
+    fresh_summary['shift1'] = fresh_summary.groupby(['reg_numb', 'date1'])['shift1'].transform(shift_order)
+    fresh_summary = fresh_summary.sort_values(by=['reg_numb', 'date1', 'shift1']).reset_index(drop=True)
     return fresh_summary
 
 
@@ -459,6 +459,7 @@ if __name__ == '__main__':
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
         fresh_summary_df = fresh_summary(final_df2)
+        final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         
