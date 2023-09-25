@@ -310,6 +310,7 @@ def ign_not_exist(termid):
             sample2.reset_index(drop=True,inplace=True)
             sample2.loc[0,'con_cum_distance']=0
             sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
+            print(sample2['currentIgn'].tolist())
             ign_cst = ign_time_cst(sample2['currentIgn'].tolist(),sample2['new_time_diff'].tolist())
             keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
                    'ign_time_cst','total_dist','ID_status','indicator']
@@ -377,7 +378,7 @@ def final_threshold_modification(i):
 def select_ign_time(row):
     if not row['total_time']:
         return np.nan
-    if ((row['ign_time_igndata']/row['total_time'])*100 == 100)or((row['ign_time_igndata']/row['total_time'])*100 == 0):
+    if (row['ign_time_igndata']/row['total_time'])*100 == 0:
         return row['ign_cst']
     else:
         return row['ign_cst']
@@ -414,7 +415,7 @@ def fresh_summary(datam):
     datam['hour'] = datam['start_time'].dt.hour
     datam['shift1'] = datam['hour'].progress_apply(categorize_shift)
     fresh_summary=datam.groupby(['regNumb','date1','shift1']).agg({'termid':'first','total_obs':'count','totdist_move':'sum','totdist_stop':'sum','tottime_move':'sum','tottime_stop_ign_on':'sum','totfuel_stop':'sum','totfuel_move':'sum','ign_time_igndata':'sum','final_ign_time':'sum','total_time':'sum'}).reset_index()
-    fresh_summary.rename(columns={'total_obs':'N','ign_time_igndata':'tottime_ignevent_on','final_ign_time':'tottime_ign_on','total_time':'tottime_span'},inplace=True)
+    fresh_summary.rename(columns={'regNumb':'reg_numb','total_obs':'N','ign_time_igndata':'tottime_ignevent_on','final_ign_time':'tottime_ign_on','total_time':'tottime_span'},inplace=True)
     fresh_summary['tottime_stop'] = fresh_summary['tottime_span'] - fresh_summary['tottime_move']
     fresh_summary['tottime_move_ign_on'] = fresh_summary['tottime_ign_on'] - fresh_summary['tottime_stop_ign_on']
     fresh_summary['tottime_stop_ign_off'] = fresh_summary['tottime_stop'] - fresh_summary['tottime_stop_ign_on']
