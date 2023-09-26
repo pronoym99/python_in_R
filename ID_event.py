@@ -169,11 +169,14 @@ def ign_exist(termid):
     groups = From_Togrouping(veh_df['Indicator'].tolist(),'strt','end')
     for i in groups:
         veh_df.loc[i[0]:i[-1],'currentIgn']=1
+    # print(veh_df.loc[0:6,'currentIgn'])
     reverse_groups = From_Togrouping(veh_df['Indicator'].tolist(),'end','strt')
     for i in reverse_groups:
         veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
+    # print(veh_df.loc[0:6,'currentIgn'])
     if groups[0][0]!=0:
         veh_df.loc[:groups[0][0]-1,'currentIgn']=0
+    # print(veh_df.loc[0:6,'currentIgn'])
     combined=[]
     for i in range(len(groups)):
         combined.append(groups[i])
@@ -381,7 +384,7 @@ def select_ign_time(row):
     if (row['ign_time_igndata']/row['total_time'])*100 == 0:
         return row['ign_cst']
     else:
-        return row['ign_cst']
+        return row['ign_time_igndata']
 
     # def print_eda(datam):
     #     datam['date'] = datam['start_time'].dt.date
@@ -432,6 +435,19 @@ def fresh_summary(datam):
 
 if __name__ == '__main__':
 
+    # new_cst_1 = pd.read_csv('../OUTPUT_DATA/sept/25_VS_Synthetic_cst_V1.csv')
+    # new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+    # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-09 03:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-09 22:00:00'))]
+    # ign = pyreadr.read_r('../INPUT_DATA/data/sept/debug_testing/ignmaster_updated_on_20th.RDS')[None]
+    # ign.rename(columns={'stop':'end'},inplace=True)
+    # ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+    # ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+    # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
+    # ign['termid'] = ign['termid'].astype(int)
+    # final_id_grouping(1204000306)
+
+
+
     if (len(sys.argv) < 3) or (Path(sys.argv[1]).suffix!='.csv') or (Path(sys.argv[2]).suffix!='.RDS'):
         print('InputFileError: Kindly pass the Enriched cst in csv format followed by Ignition Master file in RDS format.\nExiting...')
         sys.exit(0)
@@ -447,7 +463,7 @@ if __name__ == '__main__':
         ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
-
+        
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()   
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
