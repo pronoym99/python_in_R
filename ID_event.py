@@ -169,14 +169,12 @@ def ign_exist(termid):
     groups = From_Togrouping(veh_df['Indicator'].tolist(),'strt','end')
     for i in groups:
         veh_df.loc[i[0]:i[-1],'currentIgn']=1
-    # print(veh_df.loc[0:6,'currentIgn'])
     reverse_groups = From_Togrouping(veh_df['Indicator'].tolist(),'end','strt')
-    for i in reverse_groups:
-        veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
-    # print(veh_df.loc[0:6,'currentIgn'])
+    veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
+    # for i in reverse_groups:
+    #     veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
     if groups[0][0]!=0:
         veh_df.loc[:groups[0][0]-1,'currentIgn']=0
-    # print(veh_df.loc[0:6,'currentIgn'])
     combined=[]
     for i in range(len(groups)):
         combined.append(groups[i])
@@ -190,8 +188,8 @@ def ign_exist(termid):
         sample.reset_index(drop=True,inplace=True)
         indicator = sample.head(1)['Indicator'].item()
         last_ind = sample.tail(1)['Indicator'].item()
-        if last_ind =='strt':
-            sample.loc[sample.index[-1],'currentIgn']=0
+        # if last_ind =='strt':
+        #     sample.loc[sample.index[-1],'currentIgn']=0
         start_time=sample.head(1)['ts'].item()
         end_time=sample.tail(1)['ts'].item()
         sample_list = row_split(str(start_time),str(end_time))
@@ -275,7 +273,8 @@ def ign_not_exist(termid):
     veh_df['fuel_movement_status'] = 1
     veh_df.loc[abs(veh_df['Cons_lph'])<10 , 'fuel_movement_status'] = 0
     veh_df.loc[0,'fuel_movement_status']=0
-    veh_df['currentIgn'] = 0
+    # veh_df['currentIgn'] = 0
+    veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
     veh_df=id_attachment(veh_df)
     groups = cons_id_grouping(veh_df['ID_status'].tolist())
     groups=[sublist for sublist in groups if not (len(sublist) == 1 and sublist[0] == 0)]
@@ -313,10 +312,9 @@ def ign_not_exist(termid):
             sample2.reset_index(drop=True,inplace=True)
             sample2.loc[0,'con_cum_distance']=0
             sample2['new_time_diff'] = sample2['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
-            print(sample2['currentIgn'].tolist())
             ign_cst = ign_time_cst(sample2['currentIgn'].tolist(),sample2['new_time_diff'].tolist())
-            keys2=['termid','reg_numb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
-                   'ign_time_cst','total_dist','ID_status','indicator']
+            keys2=['termid','regNumb','start_time','end_time','total_obs','max_time_gap','initial_level','end_level',
+                   'ign_cst','total_dist','ID_status','indicator']
             values2=[termid,sample2.head(1)['regNumb'].item(),sample_list[k][0],sample_list[k][1],
                      len(sample2),
                      sample2['new_time_diff'].max(),sample2.head(1)['currentFuelVolumeTank1'].item(),sample2.tail(1)['currentFuelVolumeTank1'].item(),
@@ -435,19 +433,6 @@ def fresh_summary(datam):
 
 if __name__ == '__main__':
 
-    # new_cst_1 = pd.read_csv('../OUTPUT_DATA/sept/25_VS_Synthetic_cst_V1.csv')
-    # new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-    # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-09 03:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-09 22:00:00'))]
-    # ign = pyreadr.read_r('../INPUT_DATA/data/sept/debug_testing/ignmaster_updated_on_20th.RDS')[None]
-    # ign.rename(columns={'stop':'end'},inplace=True)
-    # ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-    # ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-    # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
-    # ign['termid'] = ign['termid'].astype(int)
-    # final_id_grouping(1204000306)
-
-
-
     if (len(sys.argv) < 3) or (Path(sys.argv[1]).suffix!='.csv') or (Path(sys.argv[2]).suffix!='.RDS'):
         print('InputFileError: Kindly pass the Enriched cst in csv format followed by Ignition Master file in RDS format.\nExiting...')
         sys.exit(0)
@@ -463,7 +448,7 @@ if __name__ == '__main__':
         ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
-        
+
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()   
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
@@ -475,6 +460,7 @@ if __name__ == '__main__':
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
         fresh_summary_df = fresh_summary(final_df2)
+
         final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
