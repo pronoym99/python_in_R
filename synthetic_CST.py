@@ -31,7 +31,7 @@ def calculate_consecutive_haversine_distances(df):
     distances.insert(0,0)
     return distances
 
-def disp_cst(i):
+def disp_cst(i):                              # Injection of Hecpoll refuel start timings into CST   => i : termid
     term_df = cst[cst['regNumb']==i]
     term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
     term_df.reset_index(drop=True,inplace=True)
@@ -39,7 +39,6 @@ def disp_cst(i):
     term_df['cum_distance'] = term_df['Distance'].cumsum().fillna(0)
     disp_df = disp[disp['regNumb']==i]
     if len(disp_df)!=0:
-#         disp_df['Quantity'] = disp_df['Quantity'].str.replace(',','').astype(float)
         con = pd.concat([term_df,disp_df],axis=0)
         con.sort_values(by=['ts'],inplace=True)
         con.loc[con['termid'].isnull(),'termid']=term_df.head(1)['termid'].item()
@@ -49,14 +48,18 @@ def disp_cst(i):
     else:
         return term_df
 
-def new_fuel(s_time,e_time,s_level,e_level,date):
+def new_fuel(s_time,e_time,s_level,e_level,date):           # For single fuel interpolation based on before/after values
+    #  =>  s_time : previous time , e_time : next time , s_level : previous fuel level , e_level : next level , date : Time for what this Interpolation to do
+
     total_time = (pd.to_datetime(e_time)-pd.to_datetime(s_time)).total_seconds()/60
     step_size=(e_level-s_level)/total_time
     bucket_size = (pd.to_datetime(date) - pd.to_datetime(s_time)).total_seconds()/60
     new_level = s_level+(bucket_size*step_size)
     return new_level
 
-def refuel_end_injection(i):
+def refuel_end_injection(i):                        # Injection of Refuel-end points approx 20 mins apart from each start points 
+    #   => i : termid
+
     term_df = disp_cst[disp_cst['termid']==i]
     term_df.reset_index(drop=True,inplace=True)
     if (term_df.loc[0,'Refuel_status']=='Refuel')&(term_df.loc[term_df.index[-1],'Refuel_status']=='Refuel'):
@@ -87,8 +90,8 @@ def refuel_end_injection(i):
     concat_df.sort_values(by=['termid','ts'],inplace=True)
     return concat_df
 
-def refuel_end_cum_distance(i):
-# for i in tqdm(termid_list):
+def refuel_end_cum_distance(i):                                  # Cumulative Distance interpolation for Refuel end points
+      # => i : termid 
     term_df = disp_cst1[disp_cst1['termid']==i]
     term_df.reset_index(drop=True,inplace=True)
     for ind,j in term_df.iterrows():
@@ -100,14 +103,14 @@ def refuel_end_cum_distance(i):
             term_df.loc[ind,'cum_distance'] = end_cum_distance
     return term_df
 
-def melt_conc(i):
+def melt_conc(i):                         # For injecting original ignition points into CST => i = termid; 
     ign_term = ign[ign['termid']==i];cst_term=disp_cst2[disp_cst2['termid']==i]
     cst_term=cst_term.reset_index(drop=True);ign_term=ign_term.reset_index(drop=True)
     if len(ign_term)!=0:
-#         print(len(ign_term))
         melt_ign = pd.melt(ign_term,value_vars=['strt','end'],var_name='Indicator',value_name='ts')
         melt_ign['termid']=str(i);melt_ign['regNumb']=ign_term.head(1)['veh'].item()
         melt_ign.sort_values(by='ts',inplace=True)
+        # melt_ign['Is_Ignition'] = 'TRUE'
     #     melt_ign.reset_index(drop=True, inplace=True)
         cst_1 = pd.concat([cst_term,melt_ign],axis=0)
         cst_1.sort_values(by=['ts'],inplace=True)
@@ -115,6 +118,7 @@ def melt_conc(i):
         end_indices = cst_1[cst_1['Indicator'] == 'end'].index
     #     cst_1.loc[end_indices, 'Distance'] = cst_1['Distance'].shift(-1)
         cst_1.loc[end_indices, 'cum_distance'] = cst_1['cum_distance'].shift(-1)
+
         for ind,row in cst_1.iterrows():
             if (row['Indicator'] in ('end','strt'))&(str(row['cum_distance'])=='nan'):
                 temp_df = cst_term[cst_term['ts']<pd.to_datetime(row['ts'])]
@@ -163,6 +167,7 @@ def melt_conc(i):
         for l in duplicated:
             cst_1.loc[l,'Indicator'] = cst_1.loc[l+1,'Indicator']
         cst_1.drop_duplicates(subset=['ts'],keep='first',inplace=True)
+        cst_1.loc[(cst_1['Indicator']== 'strt')|(cst_1['Indicator']=='end'),'Is_Ignition']= 'TRUE'
         # cst_1['mine']=cst_term.head(1)['mine'].item()
         # cst_1['class'] = cst_term.head(1)['mine'].item()
     else:
@@ -170,10 +175,45 @@ def melt_conc(i):
 
     return cst_1
 
-def shift_custom_function(group):
+def find_contiguous_groups_indices(binary_list):     # consecutive 1s bucketings from 'currentIgn' column (PM) ; binary_list = currentIgn list
+    groups_indices = []
+    start_index = None
+    for i, bit in enumerate(binary_list):
+        if bit == 1:
+            if start_index is None:
+                start_index = i
+        elif start_index is not None:
+            if i - start_index > 1:
+                groups_indices.append((start_index, i - 1))
+            start_index = None
+
+    # Check if the last group is also valid
+    if start_index is not None and len(binary_list) - start_index > 1:
+        groups_indices.append((start_index, len(binary_list) - 1))
+
+    return groups_indices
+
+def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt' 'end' 
+    # =>  datam : Cst data
+    indices_strt = list(datam.loc[datam['Indicator'] == 'strt'].index)
+    indices_end = list(datam.loc[datam['Indicator'] == 'end'].index)
+    results = sorted(indices_end + indices_strt[1 if indices_end[0] > indices_strt[0] else 0:])
+    results = results[:-1] if len(results) % 2 else results
+    results = [(results[i] + 1, results[i+1] - 1) for i in range(0, len(results) - 1, 2)]
+    results = [i for i in results if i[1]-i[0]>2]
+
+    for x, y in results:
+        res = [(l[0] + x, l[1] + x) for l in find_contiguous_groups_indices(datam.loc[x:y, 'currentIgn'])]
+        for i, j in res:
+            datam.loc[i, 'Indicator'] = 'strt'
+            datam.loc[j, 'Indicator'] = 'end'
+
+    return datam
+
+    
+
+def shift_custom_function(group):                    # Injection of shift points and Fuel/distances accordingly  ; Running for each date-group inside each termid group
     cst_term = new_cst[new_cst['termid']==group.head(1)['termid'].item()]
-#     print(len(cst_term))
-#     print('len of day 1204000258 from new_cst',len(group))
     group['ts']=pd.to_datetime(group['ts']);cst_term['ts']=pd.to_datetime(cst_term['ts'])
     group.sort_values(by=['ts'],inplace=True)
     time_1 = str(group.head(1)['date'].item())+' 06:00:00'
@@ -251,14 +291,11 @@ def shift_custom_function(group):
     df.drop_duplicates(subset=['ts'],inplace=True)
     return df
 
-def custom_function(group):
+def custom_function(group):                         #  Running for each termid group
 
     group_1 = group.groupby('date')
     group_result = group_1.apply(shift_custom_function)
-#     print('group result len: ',group_result.shape)
     group_result=group_result.reset_index(drop=True)
-#     print('group result len: ',len(group_result))
-    # group_result.drop(['timestamp'],axis=1,inplace=True)
     # group_result['mine']= group.head(1)['mine'].item()
     # group_result['class'] = group.head(1)['mine'].item()
     group_result['Distance'] = group_result['cum_distance'].diff().fillna(0)
@@ -267,8 +304,6 @@ def custom_function(group):
 
 if __name__ == '__main__':
 
-    # print(len(sys.argv))
-    # print(sys.argv[0],sys.argv[1])
     num_cores = cpu_count()
     if len(sys.argv) < 4:
       print('InputFilesError: You need to provide the path of RDS cst/ign files and Hectronic csv as input.\nCST data followed by ignition data followed by Hectronics Dispense Data.\nExiting....')
@@ -319,17 +354,18 @@ if __name__ == '__main__':
       disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
       disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
+      new_cst = new_cst.reset_index(drop=True)
+      new_cst = synthetic_ignition(new_cst)
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
       new_cst_1=grouped.progress_apply(custom_function)
       new_cst_1=new_cst_1.reset_index(drop=True)    
-      new_cst_1['date'] = new_cst_1['ts'].dt.date 
+    #   new_cst_1['date'] = new_cst_1['ts'].dt.date 
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
 
-
-    # Error Logging for Output Files
+    #Error Logging for Output Files
       if len(sys.argv) == 4:
         new_cst_1.to_csv('New_Synthetic_CST.csv')
         print('Data saved successfully into your Working Directory.')

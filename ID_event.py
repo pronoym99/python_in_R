@@ -90,9 +90,9 @@ def ign_time_cst(a,b): # output -> final ign time for each event
     for j in buckets:
         s = sum(b[(j[0]+1):(j[1]+1)])
         try:
-            s = s+(b[j[0]]/5)+(b[j[1]+1]/2.5)
+            s = s+(b[j[0]]/1.5)+(b[j[1]+1]/.5)       # (0-1) ~ 15% ; (1-0) ~ 5%
         except:
-            s=s+(b[j[0]]/5)
+            s=s+(b[j[0]]/1.5)                       # (0-1) ~ 15% , no (1-0)
         ign_time=ign_time+s
 #     print(f'my ign_time_cst function execution time:{time.time()-s_t}s')
     return ign_time
@@ -166,13 +166,14 @@ def ign_exist(termid):
     veh_df = new_cst_1[new_cst_1['termid']==termid]
     veh_df.reset_index(drop=True,inplace=True)
     veh_df['ts'] = pd.to_datetime(veh_df['ts'])
+
     groups = From_Togrouping(veh_df['Indicator'].tolist(),'strt','end')
     for i in groups:
         veh_df.loc[i[0]:i[-1],'currentIgn']=1
     reverse_groups = From_Togrouping(veh_df['Indicator'].tolist(),'end','strt')
     veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
-    # for i in reverse_groups:
-    #     veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
+    for i in reverse_groups:
+        veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
     if groups[0][0]!=0:
         veh_df.loc[:groups[0][0]-1,'currentIgn']=0
     combined=[]
@@ -182,6 +183,7 @@ def ign_exist(termid):
     combined.insert(0,(0,groups[0][0]))
     if combined[0][0]==combined[0][1]==0:
         combined.pop(0)
+    # print(veh_df)
     final_term_df=pd.DataFrame()
     for i in combined:
         sample = veh_df.loc[i[0]:i[-1]]
@@ -196,6 +198,7 @@ def ign_exist(termid):
         l=[]
         for k in range(len(sample_list)):
             sample2=sample[(sample['ts']>=pd.to_datetime(sample_list[k][0]))&(sample['ts']<=pd.to_datetime(sample_list[k][1]))]
+            # s = sample2.head(1)['ts'].item();e=sample2.tail(1)['ts'].item()
             sample2.reset_index(drop=True,inplace=True)
             if (len(sample2)==0):
                 temp_dict={}
@@ -218,6 +221,7 @@ def ign_exist(termid):
                 sample2.loc[abs(sample2['Cons_lph'])<10 , 'fuel_movement_status'] = 0
                 sample2.loc[0,'fuel_movement_status']=0
                 sample2=id_attachment(sample2)
+
                 id_groups = cons_id_grouping(sample2['ID_status'].tolist())
                 shift_wise_list = []
                 for j in id_groups:
@@ -226,6 +230,7 @@ def ign_exist(termid):
                     elif (j[0]==0)&(len(j)!=1):
                         sample3=sample2.loc[j[0]:j[-1]]
                         sample3.reset_index(drop=True,inplace=True)
+                        s_3 = sample3.head(1)['ts'].item();e_3=sample3.tail(1)['ts'].item()
                         t_dict = event_creation(sample3)
                         shift_wise_list.append(t_dict)
                     else:
@@ -273,8 +278,8 @@ def ign_not_exist(termid):
     veh_df['fuel_movement_status'] = 1
     veh_df.loc[abs(veh_df['Cons_lph'])<10 , 'fuel_movement_status'] = 0
     veh_df.loc[0,'fuel_movement_status']=0
-    # veh_df['currentIgn'] = 0
-    veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
+    veh_df['currentIgn'] = 0
+    # veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
     veh_df=id_attachment(veh_df)
     groups = cons_id_grouping(veh_df['ID_status'].tolist())
     groups=[sublist for sublist in groups if not (len(sublist) == 1 and sublist[0] == 0)]
@@ -335,13 +340,12 @@ def ign_not_exist(termid):
     return ff
 
 def final_id_grouping(i):
-#     for i in termid_list:
     if new_cst_1[new_cst_1['termid']==i]['Indicator'].nunique()!=0:
-        result = ign_exist(i)
+        return ign_exist(i)
     else:
-        result = ign_not_exist(i)
+        return ign_not_exist(i)
 
-    return result
+    # return result
 
 
 def additional_parameters(final_df):
@@ -361,16 +365,16 @@ def final_threshold_modification(i):
         if abs(int(i['lph']))<10:
             i['ID_status']='id8'
     elif (i['ID_status']=='id2'):
-        if ((i['total_time']<5)&(i['avg_speed']<10))or((i['total_time']>5)&(i['avg_speed']<3)):
+        if (i['total_time']>5)&(i['avg_speed']<3):   #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id8'
     elif (i['ID_status']=='id1'):
-        if ((i['total_time']<5)&(i['avg_speed']<10))or((i['total_time']>5)&(i['avg_speed']<3)):
+        if (i['total_time']>5)&(i['avg_speed']<3):    #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id3'
     elif (i['ID_status']=='id4'):
-        if ((i['total_time']<5)&(i['avg_speed']<10))or((i['total_time']>5)&(i['avg_speed']<3)):
+        if (i['total_time']>5)&(i['avg_speed']<3):     #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id6'
     elif (i['ID_status']=='id7'):
-        if ((i['total_time']<5)&(i['avg_speed']<10))or((i['total_time']>5)&(i['avg_speed']<3)):
+        if (i['total_time']>5)&(i['avg_speed']<3):     #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id5'
     else:
         pass
@@ -379,7 +383,7 @@ def final_threshold_modification(i):
 def select_ign_time(row):
     if not row['total_time']:
         return np.nan
-    if (row['ign_time_igndata']/row['total_time'])*100 == 0:
+    if ((row['ign_time_igndata']/row['total_time'])*100 == 0)&(row['ign_cst']<row['total_time']):
         return row['ign_cst']
     else:
         return row['ign_time_igndata']
@@ -433,6 +437,30 @@ def fresh_summary(datam):
 
 if __name__ == '__main__':
 
+    # new_cst_1 = pd.read_csv('../OUTPUT_DATA/sept/25_VS_Synthetic_cst_V1.csv')
+    # new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+    # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-07 22:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-08 06:00:00'))]
+    # ign = pyreadr.read_r('../INPUT_DATA/data/sept/debug_testing/ignmaster_updated_on_20th.RDS')[None]
+    # ign.rename(columns={'stop':'end'},inplace=True)
+    # ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+    # ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+    # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
+    # ign['termid'] = ign['termid'].astype(int)
+    # trial =final_id_grouping(1204000317)
+    # trial1 = additional_parameters(trial)
+    # trial_dict=trial1.to_dict('records')
+    # trial2 = pd.DataFrame([final_threshold_modification(i) for i in trial_dict])
+    # trial2['final_ign_time'] = trial2.apply(select_ign_time, axis=1)
+    # trial2['date1'] = trial2['start_time'].dt.date
+    # start_time = pd.to_datetime('22:00:00').time()
+    # trial2['date1'] = trial2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+    # trial2['veh_status'] = trial2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
+    # tr_fs = fresh_summary(trial2)
+
+# trial2[['start_time','end_time','ign_cst','ign_time_igndata','final_ign_time']]
+
+
+
     if (len(sys.argv) < 3) or (Path(sys.argv[1]).suffix!='.csv') or (Path(sys.argv[2]).suffix!='.RDS'):
         print('InputFileError: Kindly pass the Enriched cst in csv format followed by Ignition Master file in RDS format.\nExiting...')
         sys.exit(0)
@@ -441,15 +469,15 @@ if __name__ == '__main__':
 
         new_cst_1 = pd.read_csv(enriched_cst)
         new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-        # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-01 21:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-03 23:00:00'))]
+        # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-07 14:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-08 14:00:00'))]
         ign = pyreadr.read_r(ign_file)[None]
         ign.rename(columns={'stop':'end'},inplace=True)
-        ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-        ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        ign[['strt', 'end']] = ign[['IgnON', 'IgnOFF']].apply(lambda x: pd.to_datetime(x, unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None))
         ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()   
+        # termid_list=[1204000317]
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
@@ -460,27 +488,24 @@ if __name__ == '__main__':
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
         fresh_summary_df = fresh_summary(final_df2)
+        # print(fresh_summary_df[['reg_numb','date1','shift1','tottime_ign_on','tottime_ignevent_on']])
 
         final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         
+        # NO Output Paths are given
         if len(sys.argv) == 3:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')
             print('ID Data saved successfully into your Working Directory.')
+        
+        # Only one Output Path is given
         elif len(sys.argv) == 4:
             print('OutPutFileError: Kindly pass two Output File Paths for Id_event data followed by the Fresh Summary in csv format\nExiting...')
             sys.exit(0)
-            # print(str(outfile1).split('\\')[-1])
-            # outfile2 = Path(sys.argv[4])
-            # if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
-            #   print('OutputFilesFormatError: Need to write outputs to CSV files only\nExiting....')
-            #   sys.exit(0)
-            # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
-            #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
-            #   sys.exit(0)
-            # final_df1.to_csv(outfile2)
+
+        # Two Outputs Paths are given in required format
         elif len(sys.argv)==5:
             outfile1 = Path(sys.argv[3])
             outfile2 = Path(sys.argv[4])
@@ -489,7 +514,7 @@ if __name__ == '__main__':
                 sys.exit(0)
             final_df2.to_csv(outfile1)
             fresh_summary_df.to_csv(outfile2)
-            print(f' ID data folowed by fresh summary data are successfully saved to below path\n {outfile1}&{outfile2}.')
+            print(f' ID data followed by fresh summary data are successfully saved to below path\n {outfile1} & {outfile2}.')
         # Check for extra args
         else:
             print('Supports atleast 1 or 2 file arguments.')
