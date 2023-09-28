@@ -457,9 +457,6 @@ if __name__ == '__main__':
     # trial2['veh_status'] = trial2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
     # tr_fs = fresh_summary(trial2)
 
-# trial2[['start_time','end_time','ign_cst','ign_time_igndata','final_ign_time']]
-
-
 
     if (len(sys.argv) < 3) or (Path(sys.argv[1]).suffix!='.csv') or (Path(sys.argv[2]).suffix!='.RDS'):
         print('InputFileError: Kindly pass the Enriched cst in csv format followed by Ignition Master file in RDS format.\nExiting...')
