@@ -415,7 +415,7 @@ def fresh_summary(datam):
     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['veh_status']=='stationary' else 0,axis=1)
     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['veh_status']=='movement' else 0,axis=1)
     datam['totdist_stop'] = datam.apply(lambda row: row['total_dist'] if row['veh_status']=='stationary' else 0,axis=1)
-    datam['totfuel_stop'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='stationary' and row['total_cons']>-15 else 0,axis=1)
+    datam['totfuel_stop'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='stationary' and row['total_cons']>-18 else 0,axis=1)
     datam['totfuel_move'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='movement'and row['total_cons']>-15 else 0,axis=1)
     datam['hour'] = datam['start_time'].dt.hour
     datam['shift1'] = datam['hour'].progress_apply(categorize_shift)
