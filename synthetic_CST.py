@@ -57,7 +57,7 @@ def new_fuel(s_time,e_time,s_level,e_level,date):           # For single fuel in
     new_level = s_level+(bucket_size*step_size)
     return new_level
 
-def refuel_end_injection(i):                        # Injection of Refuel-end points approx 20 mins apart from each start points 
+def refuel_end_injection(i):                        # Injection of Refuel-end points approx 20 mins apart from each start points
     #   => i : termid
 
     term_df = disp_cst[disp_cst['termid']==i]
@@ -91,7 +91,7 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     return concat_df
 
 def refuel_end_cum_distance(i):                                  # Cumulative Distance interpolation for Refuel end points
-      # => i : termid 
+      # => i : termid
     term_df = disp_cst1[disp_cst1['termid']==i]
     term_df.reset_index(drop=True,inplace=True)
     for ind,j in term_df.iterrows():
@@ -103,7 +103,7 @@ def refuel_end_cum_distance(i):                                  # Cumulative Di
             term_df.loc[ind,'cum_distance'] = end_cum_distance
     return term_df
 
-def melt_conc(i):                         # For injecting original ignition points into CST => i = termid; 
+def melt_conc(i):                         # For injecting original ignition points into CST => i = termid;
     ign_term = ign[ign['termid']==i];cst_term=disp_cst2[disp_cst2['termid']==i]
     cst_term=cst_term.reset_index(drop=True);ign_term=ign_term.reset_index(drop=True)
     if len(ign_term)!=0:
@@ -193,7 +193,7 @@ def find_contiguous_groups_indices(binary_list):     # consecutive 1s bucketings
 
     return groups_indices
 
-def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt' 'end' 
+def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt' 'end'
     # =>  datam : Cst data
     indices_strt = list(datam.loc[datam['Indicator'] == 'strt'].index)
     indices_end = list(datam.loc[datam['Indicator'] == 'end'].index)
@@ -210,7 +210,7 @@ def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt
 
     return datam
 
-    
+
 
 def shift_custom_function(group):                    # Injection of shift points and Fuel/distances accordingly  ; Running for each date-group inside each termid group
     cst_term = new_cst[new_cst['termid']==group.head(1)['termid'].item()]
@@ -318,7 +318,7 @@ if __name__ == '__main__':
       if infile_cst.suffix == '.RDS':
           cst = pyreadr.read_r(infile_cst)[None]
           cst['ts'] = pd.to_datetime(cst['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-          
+
       else:
           cst = pd.read_csv(infile_cst)
         #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
@@ -360,8 +360,8 @@ if __name__ == '__main__':
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
       new_cst_1=grouped.progress_apply(custom_function)
-      new_cst_1=new_cst_1.reset_index(drop=True)    
-    #   new_cst_1['date'] = new_cst_1['ts'].dt.date 
+      new_cst_1=new_cst_1.reset_index(drop=True)
+    #   new_cst_1['date'] = new_cst_1['ts'].dt.date
       new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
 
@@ -374,15 +374,6 @@ if __name__ == '__main__':
     #       sys.exit(0)
       elif len(sys.argv) == 5:
         outfile1 = Path(sys.argv[4])
-        # print(str(outfile1).split('\\')[-1])
-        # outfile2 = Path(sys.argv[4])
-        # if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
-        #   print('OutputFilesFormatError: Need to write outputs to CSV files only\nExiting....')
-        #   sys.exit(0)
-        # elif (outfile1 == outfile2)or(str(outfile1).split('\\')[-1]==str(outfile2).split('\\')[-1]):
-        #   print("OutputFilesNameError: Output file Paths or Names can't be same\nExiting...")
-        #   sys.exit(0)
-
         new_cst_1.to_csv(outfile1)
         # final_df1.to_csv(outfile2)
         print(f' Enriched CST is successfully saved to below path: \n{outfile1}.')
