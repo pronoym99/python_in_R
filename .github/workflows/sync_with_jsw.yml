@@ -27,16 +27,16 @@ jobs:
           if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../ID_event.py"* ]]; then
             changed_files+=("../../ID_event.py")
           fi
-          echo "::set-output name=changed_files::${changed_files[@]}"
+          echo "changed_files=${changed_files[@]}" >> $GITHUB_ENV
         shell: bash
 
       - name: Sync modified files to another repository
-        if: steps.file_changes.outputs.changed_files
+        if: env.changed_files
         uses: nkoppel/push-files-to-another-repository@v1.1.1
         env:
           API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
         with:
-          source-files: ${{ join(steps.file_changes.outputs.changed_files, ' ') }}
+          source-files: ${{ join(env.changed_files, ' ') }}
           destination-username: 'sanjmeh'
           destination-repository: 'JSW-VTPL'
           destination-directory: 'python/'
