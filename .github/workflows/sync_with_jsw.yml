@@ -5,11 +5,11 @@ on:
   push:
     branches:
       - main
-  
+
 jobs:
   sync-python-to-jsw:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,7 +27,7 @@ jobs:
           fi
           done
           echo "changed_files=${changed_files[@]}" >> $GITHUB_ENV
-          echo "Changed files: ${changed_files[@]}"  # Add this line to print the value
+          echo "Changed files: ${changed_files[@]}"
         shell: bash
 
       - name: Sync modified files to another repository
