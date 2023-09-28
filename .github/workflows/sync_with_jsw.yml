@@ -1,0 +1,45 @@
+name: Copy modified files to another repository
+run-name: ${{ github.actor }} is syncing with the JSW-VTPL repo
+
+on:
+  push:
+    branches:
+      - main
+  
+jobs:
+  sync-python-to-jsw:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for file changes
+        id: file_changes
+        run: |
+          changed_files=()
+          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../dist_allmods.py"* ]]; then
+            changed_files+=("../../dist_allmods.py")
+          fi
+          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../synthetic_CST.py"* ]]; then
+            changed_files+=("../../synthetic_CST.py")
+          fi
+          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../ID_event.py"* ]]; then
+            changed_files+=("../../ID_event.py")
+          fi
+          echo "::set-output name=changed_files::${changed_files[@]}"
+        shell: bash
+
+      - name: Sync modified files to another repository
+        if: steps.file_changes.outputs.changed_files
+        uses: nkoppel/push-files-to-another-repository@1.1.0
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+        with:
+          source-files: ${{ join(steps.file_changes.outputs.changed_files, ' ') }}
+          destination-username: 'sanjmeh'
+          destination-repository: 'JSW-VTPL'
+          destination-directory: 'python/'
+          commit-email: 'lukex9442@gmail.com'
+          commit-username: 'pronoym99'
+          destination-branch: 'synthetic-time-series'
