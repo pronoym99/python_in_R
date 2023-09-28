@@ -20,14 +20,10 @@ jobs:
         id: file_changes
         run: |
           changed_files=()
-          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../dist_allmods.py"* ]]; then
-            changed_files+=("../../dist_allmods.py")
-          fi
-          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../synthetic_CST.py"* ]]; then
-            changed_files+=("../../synthetic_CST.py")
-          fi
-          if [[ $(git diff --name-only ${{ github.event.before }} ${{ github.sha }}) == *"../../ID_event.py"* ]]; then
-            changed_files+=("../../ID_event.py")
+          IFS=$'\n'
+          for file in $(git diff --name-only HEAD~1 HEAD); do
+            if [[ "$file" == *"dist_allmods.py"* || "$file" == *"synthetic_CST.py"* || "$file" == *"ID_event.py"* ]]; then
+              changed_files+=("$file")
           fi
           echo "changed_files=${changed_files[@]}" >> $GITHUB_ENV
           echo "Changed files: ${changed_files[@]}"  # Add this line to print the value
