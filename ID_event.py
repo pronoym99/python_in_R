@@ -365,16 +365,16 @@ def final_threshold_modification(i):
         if abs(int(i['lph']))<10:
             i['ID_status']='id8'
     elif (i['ID_status']=='id2'):
-        if (i['total_time']>5)&(i['avg_speed']<3):   #((i['total_time']<5)&(i['avg_speed']<10))or
+        if (i['total_time']>10)&(i['avg_speed']<1):   #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id8'
     elif (i['ID_status']=='id1'):
-        if (i['total_time']>5)&(i['avg_speed']<3):    #((i['total_time']<5)&(i['avg_speed']<10))or
+        if (i['total_time']>10)&(i['avg_speed']<1):    #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id3'
     elif (i['ID_status']=='id4'):
-        if (i['total_time']>5)&(i['avg_speed']<3):     #((i['total_time']<5)&(i['avg_speed']<10))or
+        if (i['total_time']>10)&(i['avg_speed']<1):     #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id6'
     elif (i['ID_status']=='id7'):
-        if (i['total_time']>5)&(i['avg_speed']<3):     #((i['total_time']<5)&(i['avg_speed']<10))or
+        if (i['total_time']>10)&(i['avg_speed']<1):     #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id5'
     else:
         pass
