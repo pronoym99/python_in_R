@@ -415,8 +415,8 @@ def fresh_summary(datam):
     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['veh_status']=='stationary' else 0,axis=1)
     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['veh_status']=='movement' else 0,axis=1)
     datam['totdist_stop'] = datam.apply(lambda row: row['total_dist'] if row['veh_status']=='stationary' else 0,axis=1)
-    datam['totfuel_stop'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='stationary' and row['total_cons']>-10 else 0,axis=1)
-    datam['totfuel_move'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='movement'and row['total_cons']>-10 else 0,axis=1)
+    datam['totfuel_stop'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='stationary' and row['total_cons']>0 else 0,axis=1)
+    datam['totfuel_move'] = datam.apply(lambda row: row['total_cons'] if row['veh_status']=='movement'and row['total_cons']>0 else 0,axis=1)
     datam['hour'] = datam['start_time'].dt.hour
     datam['shift1'] = datam['hour'].progress_apply(categorize_shift)
     fresh_summary=datam.groupby(['regNumb','date1','shift1']).agg({'termid':'first','total_obs':'count','totdist_move':'sum','totdist_stop':'sum','tottime_move':'sum','tottime_stop_ign_on':'sum','totfuel_stop':'sum','totfuel_move':'sum','ign_time_igndata':'sum','final_ign_time':'sum','total_time':'sum'}).reset_index()
