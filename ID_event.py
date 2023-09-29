@@ -345,7 +345,7 @@ def final_id_grouping(i):
     else:
         return ign_not_exist(i)
 
-    
+    # return result
 
 
 def additional_parameters(final_df):
