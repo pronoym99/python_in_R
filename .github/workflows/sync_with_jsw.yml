@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'synthetic_CST.py'
+      - 'dist_allmods.py'
+      - 'ID_event.py'
 
 jobs:
   sync-python-to-jsw:
@@ -40,6 +44,6 @@ jobs:
           destination-username: 'sanjmeh'
           destination-repository: 'JSW-VTPL'
           destination-directory: 'python/'
-          commit-email: 'lukex9442@gmail.com'
+          commit-email: ${{ github.event.pusher.email }}
           commit-username: ${{ github.actor }}
           destination-branch: 'synthetic-time-series'
