@@ -374,6 +374,7 @@ if __name__ == '__main__':
     #       sys.exit(0)
       elif len(sys.argv) == 5:
         outfile1 = Path(sys.argv[4])
+
         new_cst_1.to_csv(outfile1)
         # final_df1.to_csv(outfile2)
         print(f' Enriched CST is successfully saved to below path: \n{outfile1}.')
