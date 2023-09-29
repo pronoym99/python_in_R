@@ -41,5 +41,5 @@ jobs:
           destination-repository: 'JSW-VTPL'
           destination-directory: 'python/'
           commit-email: 'lukex9442@gmail.com'
-          commit-username: 'pronoym99'
+          commit-username: ${{ github.actor }}
           destination-branch: 'synthetic-time-series'
