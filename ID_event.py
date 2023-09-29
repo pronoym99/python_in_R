@@ -422,11 +422,40 @@ def expand_even_ids(datam):
             datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']    
     return datam
 
-def even_b_odd(i):
+def even_b_odd_refuel_add_to_ID(i):
     term_df = final_df2[final_df2['termid']==i]    # final_df2
     term_df.reset_index(drop=True,inplace=True)
     term_df = expand_even_ids(term_df)
-    return term_df
+
+    cst_term = new_cst_1[new_cst_1['termid']==i]
+    cst_term.reset_index(drop=True,inplace=True)
+    timestamp_list = cst_term[cst_term['Refuel_status']=='Refuel']['ts'].tolist()
+    quantities = cst_term[cst_term['Refuel_status']=='Refuel']['Quantity'].tolist()
+    tx_list = cst_term[cst_term['Refuel_status']=='Refuel']['TxId'].tolist()
+    if len(timestamp_list)!=0:
+        for timestamp,quantity,txid in zip(timestamp_list,quantities,tx_list):
+            timestamp = pd.to_datetime(timestamp)
+            mask = (timestamp >= term_df['start_time']) & (timestamp < term_df['end_time'])
+            term_df.loc[mask,'Refuel_TxID'] = txid
+            term_df.loc[mask,'Refuel_Qty'] = quantity
+        return pd.DataFrame(term_df)
+    else:
+        term_df['Refuel_TxID'] = 'NaN'
+        term_df['Refuel_Qty'] = 'NaN'
+        return term_df
+    # return term_df
+
+# def refuel_add_to_ID(termid):
+#     term_df = new_cst_1[new_cst_1['termid']==termid]
+#     term_df.reset_index(drop=True,inplace=True)
+#     id_term = final_df2[final_df2['termid']==termid]    
+#     id_term.reset_index(drop=True,inplace=True)
+#     timestamp_list = term_df[term_df['Refuel_status']=='Refuel']['ts'].tolist()
+#     for timestamp in timestamp_list:
+#         timestamp = pd.to_datetime(timestamp)
+#         mask = (timestamp >= id_term['start_time']) & (timestamp < id_term['end_time'])
+#         id_term.loc[mask,'Refuel_status'] = 'Refuel'
+#     return pd.DataFrame(id_term)
 
 def fresh_summary(datam):
     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['veh_status']=='movement' else 0,axis=1)
@@ -496,22 +525,28 @@ if __name__ == '__main__':
 
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
         # termid_list=[1204000266]
+        print('Iteration 1: generating ID Buckets')
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
+        print('Iteration 2: Modification of IDs based on Thresholds')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
         final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)
         final_df2['date1'] = final_df2['start_time'].dt.date
         start_time = pd.to_datetime('22:00:00').time()
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
-        final_df2 = pd.concat([even_b_odd(i) for i in tqdm(termid_list)])
+        print('Iteration 3 : Modification of even IDs ign for single in-between occurrences and Refuel attributes add')
+        final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list)])
+        # print('Iteration')
+        # final_df2 = pd.concat([refuel_add_to_ID(i) for i in tqdm(termid_list)])
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
+        print('Iteration 4: Fresh Summary Calculation')
         fresh_summary_df = fresh_summary(final_df2)
 
         final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
-        
+        print('Results have been generated successfully!\n Looking for output paths to save... ')
         #  NO Output Paths are given
         if len(sys.argv) == 3:
             final_df2.to_csv('ID_event_data.csv')
