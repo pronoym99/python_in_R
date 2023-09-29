@@ -340,7 +340,7 @@ if __name__ == '__main__':
       regNumb_list = cst['regNumb'].unique().tolist()
       disp = pd.read_csv(disp)
       disp.rename(columns={'Vehicle Number':'regNumb','Date':'date','Time Stamp':'ts'},inplace=True)
-      disp=disp[disp['regNumb'].isin(cst['regNumb'])][['ts','date','Station Name','regNumb','Quantity']]
+      disp=disp[disp['regNumb'].isin(cst['regNumb'])][['ts','date','Station Name','regNumb','Quantity','TxId']]
       if len(cst)==0:
         print('CstDataError: Fuel levels API values error/Blank. Kindly pass a valid cst data.\nExiting....')
         sys.exit(0)

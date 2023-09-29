@@ -415,10 +415,11 @@ def shift_order(x):
 
 def expand_even_ids(datam):
     even_ids = datam['ID_status'].str.contains(r'id[2468]')
-    even_indices = even_ids.index[even_ids].tolist()
+    even_ids_1 = datam['ID_status'].str.contains(r'id[2468]').fillna(False)
+    even_indices = even_ids.index[even_ids_1].tolist()
     for i in even_indices:
         if (i - 1 >= 0 and not even_ids[i - 1]) and (i + 1 < len(datam) and not even_ids[i + 1]):
-            datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']
+            datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']    
     return datam
 
 def even_b_odd(i):
@@ -456,14 +457,14 @@ if __name__ == '__main__':
 
     # new_cst_1 = pd.read_csv('../OUTPUT_DATA/sept/synthetic_1_10.csv')
     # new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-    # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-03 13:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-03 14:00:00'))]
+    # # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-03 13:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-03 14:00:00'))]
     # ign = pyreadr.read_r('../INPUT_DATA/data/sept/debug_testing/ignmaster_updated_on_20th.RDS')[None]
     # ign.rename(columns={'stop':'end'},inplace=True)
     # ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
     # ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
     # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
     # ign['termid'] = ign['termid'].astype(int)
-    # trial =final_id_grouping(1204000313)
+    # trial =final_id_grouping(1204000266)
     # trial1 = additional_parameters(trial)
     # trial_dict=trial1.to_dict('records')
     # trial2 = pd.DataFrame([final_threshold_modification(i) for i in trial_dict])
@@ -472,8 +473,10 @@ if __name__ == '__main__':
     # start_time = pd.to_datetime('22:00:00').time()
     # trial2['date1'] = trial2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
     # trial2['veh_status'] = trial2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
-    # trial2 = even_b_odd(1204000313)
+    # # trial2.to_csv('../OUTPUT_DATA/sept/266_bug.csv')
+    # trial2 = even_b_odd(1204000266)
     # tr_fs = fresh_summary(trial2)
+    # print('Done!')
 
 
     if (len(sys.argv) < 3) or (Path(sys.argv[1]).suffix!='.csv') or (Path(sys.argv[2]).suffix!='.RDS'):
@@ -492,7 +495,7 @@ if __name__ == '__main__':
         ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
-        # termid_list=[1204000317]
+        # termid_list=[1204000266]
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
@@ -508,8 +511,8 @@ if __name__ == '__main__':
         final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
-
-        # NO Output Paths are given
+        
+        #  NO Output Paths are given
         if len(sys.argv) == 3:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')
