@@ -491,8 +491,9 @@ if __name__ == '__main__':
         ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         ign['termid'] = ign['termid'].astype(int)
 
-        termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()   
-        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:2])])
+        termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
+        # termid_list=[1204000317]
+        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
         final_df_dict=final_df1.to_dict('records')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
@@ -500,20 +501,20 @@ if __name__ == '__main__':
         final_df2['date1'] = final_df2['start_time'].dt.date
         start_time = pd.to_datetime('22:00:00').time()
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
-        final_df2 = pd.concat([even_b_odd(i) for i in tqdm(termid_list[:2])])
+        final_df2 = pd.concat([even_b_odd(i) for i in tqdm(termid_list)])
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
         fresh_summary_df = fresh_summary(final_df2)
 
         final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
-        
+
         # NO Output Paths are given
         if len(sys.argv) == 3:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')
             print('ID Data saved successfully into your Working Directory.')
-        
+
         # Only one Output Path is given
         elif len(sys.argv) == 4:
             print('OutPutFileError: Kindly pass two Output File Paths for Id_event data followed by the Fresh Summary in csv format\nExiting...')
