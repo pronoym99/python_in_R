@@ -256,8 +256,7 @@ def shift_custom_function(group):                    # Injection of shift points
         time_2_cum_dist = new_fuel(temp_1.tail(1)['ts'].item(),tem_1.head(1)['ts'].item(),
                                temp_1.tail(1)['cum_distance'].item(),
                                tem_1.head(1)['cum_distance'].item(),pd.to_datetime(time_2))
-#     else:
-#         time_2_level = 0;time_2_dist=0
+
     time_3 = str(group.head(1)['date'].item())+' 22:00:00'
     temp_2 = cst_term[cst_term['ts']<pd.to_datetime(time_3)]
     tem_2 = cst_term[cst_term['ts']>pd.to_datetime(time_3)]
