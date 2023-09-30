@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import sys
+import math
 # import matplotlib.pyplot as plt
 from datetime import datetime, timedelta, time
 from haversine import haversine, Unit
@@ -430,20 +431,34 @@ def even_b_odd_refuel_add_to_ID(i):
     cst_term = new_cst_1[new_cst_1['termid']==i]
     cst_term.reset_index(drop=True,inplace=True)
     timestamp_list = cst_term[cst_term['Refuel_status']=='Refuel']['ts'].tolist()
+    endtime_list = cst_term[cst_term['Refuel_status']=='Refuel_end']['ts'].tolist()
     quantities = cst_term[cst_term['Refuel_status']=='Refuel']['Quantity'].tolist()
     tx_list = cst_term[cst_term['Refuel_status']=='Refuel']['TxId'].tolist()
     if len(timestamp_list)!=0:
-        for timestamp,quantity,txid in zip(timestamp_list,quantities,tx_list):
-            timestamp = pd.to_datetime(timestamp)
+        for timestamp,endtime,quantity,txid in zip(timestamp_list,endtime_list,quantities,tx_list):
+            timestamp = pd.to_datetime(timestamp);end = pd.to_datetime(endtime)
             mask = (timestamp >= term_df['start_time']) & (timestamp < term_df['end_time'])
-            term_df.loc[mask,'Refuel_TxID'] = txid
+            mask2 = (end > term_df['start_time']) & (end <= term_df['end_time'])
+            term_df.loc[mask,'Refuel_TxID'] = txid ; term_df.loc[mask2,'Refuel_TxID'] = txid
             term_df.loc[mask,'Refuel_Qty'] = quantity
+        txid_list_ID = term_df['Refuel_TxID'].tolist()
+        prev_digit = None
+        for i in range(len(txid_list_ID)):
+            if not math.isnan(txid_list_ID[i]):
+                if prev_digit is not None and prev_digit == txid_list_ID[i]:
+                    # Replace NaN values between identical digits
+                    for j in range(i - 1, prev_index, -1):
+                        if math.isnan(txid_list_ID[j]): txid_list_ID[j] = prev_digit
+                        else: break
+                prev_digit = txid_list_ID[i]
+                prev_index = i
+        term_df['Refuel_TxID'] = txid_list_ID
+
         return pd.DataFrame(term_df)
     else:
         term_df['Refuel_TxID'] = 'NaN'
         term_df['Refuel_Qty'] = 'NaN'
         return term_df
-    # return term_df
 
 # def refuel_add_to_ID(termid):
 #     term_df = new_cst_1[new_cst_1['termid']==termid]

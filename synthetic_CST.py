@@ -88,20 +88,29 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
 #     normal_df=normal_df.append(term_df)
     concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
     concat_df.sort_values(by=['termid','ts'],inplace=True)
-    return concat_df
-
-def refuel_end_cum_distance(i):                                  # Cumulative Distance interpolation for Refuel end points
-      # => i : termid
-    term_df = disp_cst1[disp_cst1['termid']==i]
-    term_df.reset_index(drop=True,inplace=True)
-    for ind,j in term_df.iterrows():
+    concat_df.reset_index(drop=True,inplace=True)
+    for ind,j in concat_df.iterrows():
         if j['Refuel_status']=='Refuel_end':
-            a = term_df[term_df['ts']<pd.to_datetime(j['ts'])]
-            b = term_df[term_df['ts']>pd.to_datetime(j['ts'])]
+            a = concat_df[concat_df['ts']<pd.to_datetime(j['ts'])]
+            b = concat_df[concat_df['ts']>pd.to_datetime(j['ts'])]
             end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a.tail(1)['cum_distance'].item(),
                                        b.head(1)['cum_distance'].item(),j['ts'])
-            term_df.loc[ind,'cum_distance'] = end_cum_distance
-    return term_df
+            concat_df.loc[ind,'cum_distance'] = end_cum_distance
+
+    return concat_df
+
+# def refuel_end_cum_distance(i):                                  # Cumulative Distance interpolation for Refuel end points
+#       # => i : termid
+#     term_df = disp_cst1[disp_cst1['termid']==i]
+#     term_df.reset_index(drop=True,inplace=True)
+#     for ind,j in term_df.iterrows():
+#         if j['Refuel_status']=='Refuel_end':
+#             a = term_df[term_df['ts']<pd.to_datetime(j['ts'])]
+#             b = term_df[term_df['ts']>pd.to_datetime(j['ts'])]
+#             end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a.tail(1)['cum_distance'].item(),
+#                                        b.head(1)['cum_distance'].item(),j['ts'])
+#             term_df.loc[ind,'cum_distance'] = end_cum_distance
+#     return term_df
 
 def melt_conc(i):                         # For injecting original ignition points into CST => i = termid;
     ign_term = ign[ign['termid']==i];cst_term=disp_cst2[disp_cst2['termid']==i]
@@ -110,8 +119,6 @@ def melt_conc(i):                         # For injecting original ignition poin
         melt_ign = pd.melt(ign_term,value_vars=['strt','end'],var_name='Indicator',value_name='ts')
         melt_ign['termid']=str(i);melt_ign['regNumb']=ign_term.head(1)['veh'].item()
         melt_ign.sort_values(by='ts',inplace=True)
-        # melt_ign['Is_Ignition'] = 'TRUE'
-    #     melt_ign.reset_index(drop=True, inplace=True)
         cst_1 = pd.concat([cst_term,melt_ign],axis=0)
         cst_1.sort_values(by=['ts'],inplace=True)
         cst_1.reset_index(drop=True,inplace=True)
@@ -324,7 +331,6 @@ if __name__ == '__main__':
         #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
           cst['ts'] = pd.to_datetime(cst['ts'])
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
-    #   cst.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
       cst.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
       ign = pyreadr.read_r(infile_igtn)[None]
       faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
@@ -350,19 +356,27 @@ if __name__ == '__main__':
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
+      print("Iteration 1: Refuel concatenation to CST")
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
-      disp_cst1 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
-      disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
+      print("Iteration 2: Refuel end times injection into CST")
+      disp_cst2 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
+    #   print("Iteration 3: Cumulative Dist Interpolation for Refuel start-ends")
+    #   disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
+      print("Iteration 3: Ignition Concatenation to CST")
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
       new_cst = new_cst.reset_index(drop=True)
       new_cst = synthetic_ignition(new_cst)
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
+      print("Iteration 4: Shift times injection to CST")
       new_cst_1=grouped.progress_apply(custom_function)
       new_cst_1=new_cst_1.reset_index(drop=True)
     #   new_cst_1['date'] = new_cst_1['ts'].dt.date
-      new_cst_1.drop(['Time_diff','Station Name'],axis=1,inplace=True)
+      new_cst_1.drop(['Time_diff','Station Name','timestr','date'],axis=1,inplace=True)
+      new_cst_1['date1'] = new_cst_1['ts'].dt.date
+      start_time = pd.to_datetime('22:00:00').time()
+      new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
 
     #Error Logging for Output Files
