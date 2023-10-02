@@ -211,9 +211,8 @@ def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt
 
     for x, y in results:
         res = [(l[0] + x, l[1] + x) for l in find_contiguous_groups_indices(datam.loc[x:y, 'currentIgn'])]
-        for i, j in res:
-            datam.loc[i, 'Indicator'] = 'strt'
-            datam.loc[j, 'Indicator'] = 'end'
+        datam.loc[[x for x, _ in res], 'Indicator'] = 'strt'
+        datam.loc[[y for _, y in res], 'Indicator'] = 'end'
 
     return datam
 
