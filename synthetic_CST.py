@@ -75,15 +75,22 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     injected_data=[]
     for ind,j in term_df.iterrows():
         if (j['Refuel_status']=='Refuel'):
-            term_df.loc[ind,'currentFuelVolumeTank1'] = term_df.loc[ind-1,'currentFuelVolumeTank1']
             refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
-            refuel_end_level = term_df.loc[ind-1,'currentFuelVolumeTank1'] + term_df.loc[ind,'Quantity']
-            refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
-                                                term_df.loc[ind-1,'cum_distance'],term_df.loc[ind+1,'cum_distance'],
-                                                 term_df.loc[ind,'ts'])
-            term_df.loc[ind,'cum_distance'] = refuel_start_cum_distance
-            injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
-                                  'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+            if ind !=0:
+                level = term_df.loc[ind-1,'currentFuelVolumeTank1']
+                term_df.loc[ind,'currentFuelVolumeTank1'] = level 
+                refuel_end_level = level + term_df.loc[ind,'Quantity']
+                refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
+                                                    term_df.loc[ind-1,'cum_distance'],term_df.loc[ind+1,'cum_distance'],
+                                                    term_df.loc[ind,'ts'])
+                term_df.loc[ind,'cum_distance'] = refuel_start_cum_distance
+                injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
+                                    'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+            else:
+                level = term_df.loc[ind+1,'currentFuelVolumeTank1']
+                term_df.loc[ind,'currentFuelVolumeTank1'] = level
+                refuel_end_level = level + term_df.loc[ind,'Quantity']
+                injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'],'ts':refuel_end_time,'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
     injected_df = pd.DataFrame(injected_data)
 #     normal_df=normal_df.append(term_df)
     concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
@@ -145,14 +152,10 @@ def melt_conc(i):                         # For injecting original ignition poin
                 else:
     #                 cst_1.loc[ind,'Distance'] = temp_df.tail(1)['Distance'].item()
                     cst_1.loc[ind,'cum_distance'] = temp_df.tail(1)['cum_distance'].item()
-    #     groups = Off_On_grouping(cst_1['Indicator'].tolist())
-    #     for j in groups:
-    #         cst_1.loc[j[0]+1:j[1],'Distance'] = 0
         cst_1.sort_values(by=['ts','Indicator'],inplace=True)
         cst_1.reset_index(drop=True,inplace=True)
         fil_strt=cst_1.query("Indicator=='strt'")
         for ind,row in fil_strt.iterrows():
-    #         if ind!=0:
             temp_df = cst_term[cst_term['ts']<pd.to_datetime(row['ts'])]
             a_df = cst_term[cst_term['ts']>pd.to_datetime(row['ts'])]
             if (len(temp_df)!=0)&(len(a_df)!=0):
@@ -378,8 +381,9 @@ if __name__ == '__main__':
       start_time = pd.to_datetime('22:00:00').time()
       new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
+      print('Synthetic CST has been generated successfully! ')
 
-    #Error Logging for Output Files
+    # Error Logging for Output Files
       if len(sys.argv) == 4:
         new_cst_1.to_csv('New_Synthetic_CST.csv')
         print('Data saved successfully into your Working Directory.')
