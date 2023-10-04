@@ -551,7 +551,7 @@ if __name__ == '__main__':
 
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
         print('Iteration 1: generating ID Buckets')
-        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:5])])
+        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)
         final_df2 = final_df1.copy()
         # final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)
@@ -559,7 +559,7 @@ if __name__ == '__main__':
         start_time = pd.to_datetime('22:00:00').time()
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
         print('Iteration 2 : Modification of even IDs ign for single in-between occurrences and Refuel/Ign attributes add')
-        final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list[:5])])
+        final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list)])
         final_df_dict=final_df2.to_dict('records')
         print('Iteration 3: Modification of IDs based on Thresholds')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
