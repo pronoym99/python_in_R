@@ -44,15 +44,14 @@ def disp_cst(i):                              # Injection of Hecpoll refuel star
     term_df['Distance'] = calculate_consecutive_haversine_distances(term_df)
     term_df['cum_distance'] = term_df['Distance'].cumsum().fillna(0)
     disp_df = disp[disp['regNumb']==i]
-    if len(disp_df)!=0:
-        con = pd.concat([term_df,disp_df],axis=0)
-        con.sort_values(by=['ts'],inplace=True)
-        con.loc[con['termid'].isnull(),'termid']=term_df.head(1)['termid'].item()
-        # con['mine'] = term_df.head(1)['mine'].item()
-        # con['class'] = term_df.head(1)['class'].item()
-        return con
-    else:
+    if len(disp_df) == 0:
         return term_df
+    con = pd.concat([term_df,disp_df],axis=0)
+    con.sort_values(by=['ts'],inplace=True)
+    con.loc[con['termid'].isnull(),'termid']=term_df.head(1)['termid'].item()
+    # con['mine'] = term_df.head(1)['mine'].item()
+    # con['class'] = term_df.head(1)['class'].item()
+    return con
 
 def new_fuel(s_time,e_time,s_level,e_level,date):           # For single fuel interpolation based on before/after values
     #  =>  s_time : previous time , e_time : next time , s_level : previous fuel level , e_level : next level , date : Time for what this Interpolation to do
@@ -60,8 +59,7 @@ def new_fuel(s_time,e_time,s_level,e_level,date):           # For single fuel in
     total_time = (pd.to_datetime(e_time)-pd.to_datetime(s_time)).total_seconds()/60
     step_size=(e_level-s_level)/total_time
     bucket_size = (pd.to_datetime(date) - pd.to_datetime(s_time)).total_seconds()/60
-    new_level = s_level+(bucket_size*step_size)
-    return new_level
+    return s_level+(bucket_size*step_size)
 
 def refuel_end_injection(i):                        # Injection of Refuel-end points approx 20 mins apart from each start points
     #   => i : termid
@@ -74,8 +72,6 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
         term_df.drop(0,axis=0,inplace=True)
     elif term_df.loc[term_df.index[-1],'Refuel_status']=='Refuel':
         term_df.drop(term_df.index[-1],inplace=True)
-    else:
-        pass
     term_df.reset_index(drop=True,inplace=True)
 #     count = count+len(term_df)
     injected_data=[]

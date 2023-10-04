@@ -21,17 +21,19 @@ cst['ts'] = pd.to_datetime(cst['ts'])
 # print(allmods.shape)
 
 def timestamp_(date):
-    formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
-#     print('T1')
-    return formatted_datetime
+    return datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
 
 def Utc_to_Ist(utc_time1):
 
     utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
     ist_timezone = pytz.timezone("Asia/Kolkata")
-    ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
-
-    return ist_time
+    return (
+        utc_time.replace(tzinfo=pytz.UTC)
+        .astimezone(ist_timezone)
+        .strftime("%Y-%m-%d %H:%M:%S")
+    )
 
 term_df = cst.query("termid==1204000784")
 try:

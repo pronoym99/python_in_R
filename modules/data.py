@@ -36,9 +36,6 @@ def common_feature(dataframe,mod_dataframe):
             sample=dataframe.loc[(dataframe['ts']>=row['strt'])&(dataframe['ts']<=row['end'])]
             if len(sample)!=0:
                 dataframe.loc[sample.index[0], 'REfuel_unique'] = row['fuel']
-    else:
-        pass
-
     return dataframe,mod_dataframe1
 
 
@@ -91,11 +88,6 @@ def data_prep_fuel(df,mods_df):
     if df[df['ts'] >= end_time].empty:
         end_time -= pd.DateOffset(days=1)
     df=df[(df['ts'] >= start_time) & (df['ts'] <= end_time)]
-#     print('S3')
-
-
-    if len(mods_df)==0:
-        pass
     if len(mods_df)!=0:
         mods_df['start_date'] = [str(i).split(' ')[0] for i in mods_df['strt']]
         mods_df['end_date'] = [str(i).split(' ')[0] for i in mods_df['end']]
@@ -107,9 +99,6 @@ def data_prep_fuel(df,mods_df):
             end_time_mod -= pd.DateOffset(days=1)
         mods_df=mods_df[(mods_df['strt'] >= start_time_mod) & (mods_df['end'] <= end_time_mod)]
         mods_df=mods_df.query("fuel>20")
-    else:
-        pass
-
     df['REfuel_amt'] = 0
     for _,row in mods_df.iterrows():
         df.loc[(df['ts']>=row['strt'])&(df['ts']<=row['end']),'REfuel_amt'] = row['fuel']
@@ -124,7 +113,8 @@ def data_prep_fuel(df,mods_df):
     indexes = list(sample_set)
     df.loc[indexes,'Fuel_difference'] = 0
 
-    s=0;t=0
+    s=0
+    t=0
     for index,row in df.iterrows():
         s+=row['Fuel_difference']
         if s >110:

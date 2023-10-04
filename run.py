@@ -28,9 +28,9 @@ if __name__ == '__main__':
     
     
     def timestamp_(date):
-        formatted_datetime = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d %H:%M:%S")
-        #print('T1')
-        return formatted_datetime
+        return datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
     try:
         df_chunks = []
@@ -67,15 +67,17 @@ if __name__ == '__main__':
         prev_lon = df_1.at[row.name - 1, 'lg']
         curr_lat = row['lt']
         curr_lon = row['lg']
-        distance = haversine((prev_lat, prev_lon), (curr_lat, curr_lon), unit=Unit.METERS)
-        return distance
+        return haversine((prev_lat, prev_lon), (curr_lat, curr_lon), unit=Unit.METERS)
     
     def Utc_to_Ist(utc_time1):
 
         utc_time = datetime.strptime(str(utc_time1), "%Y-%m-%d %H:%M:%S")
         ist_timezone = pytz.timezone("Asia/Kolkata")
-        ist_time = utc_time.replace(tzinfo=pytz.UTC).astimezone(ist_timezone).strftime("%Y-%m-%d %H:%M:%S")
-        return ist_time
+        return (
+            utc_time.replace(tzinfo=pytz.UTC)
+            .astimezone(ist_timezone)
+            .strftime("%Y-%m-%d %H:%M:%S")
+        )
 
     termid_class_map = termid_class_map
 

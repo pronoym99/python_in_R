@@ -52,15 +52,15 @@ def get_shift_timestamp(date_str):
     input_time = datetime_input.time()
 
     if input_time >= datetime.strptime('00:00:00', '%H:%M:%S').time() and input_time < datetime.strptime('06:00:00', '%H:%M:%S').time():
-        shift_time = datetime_input.replace(hour=6, minute=0, second=0, microsecond=0)
+        return datetime_input.replace(hour=6, minute=0, second=0, microsecond=0)
     elif input_time >= datetime.strptime('06:00:00', '%H:%M:%S').time() and input_time < datetime.strptime('14:00:00', '%H:%M:%S').time():
-        shift_time = datetime_input.replace(hour=14, minute=0, second=0, microsecond=0)
+        return datetime_input.replace(hour=14, minute=0, second=0, microsecond=0)
     elif input_time >= datetime.strptime('14:00:00', '%H:%M:%S').time() and input_time < datetime.strptime('22:00:00', '%H:%M:%S').time():
-        shift_time = datetime_input.replace(hour=22, minute=0, second=0, microsecond=0)
+        return datetime_input.replace(hour=22, minute=0, second=0, microsecond=0)
     else:
-        shift_time = (datetime_input + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
-
-    return shift_time
+        return (datetime_input + timedelta(days=1)).replace(
+            hour=6, minute=0, second=0, microsecond=0
+        )
 
 def row_split(start_time,end_time):
     end = str(get_shift_timestamp(start_time))
@@ -107,13 +107,11 @@ def Off_On_grouping(indicator):
     for i, value in enumerate(indicator):
         if value == 'end':
             if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
+                buckets.append((start_position, i))
             start_position = i
         elif value == 'strt':
             if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
+                buckets.append((start_position, i))
                 start_position = None
     if start_position is not None:
         buckets.append((start_position, len(indicator)))
@@ -202,9 +200,9 @@ def ign_exist(termid):
             # s = sample2.head(1)['ts'].item();e=sample2.tail(1)['ts'].item()
             sample2.reset_index(drop=True,inplace=True)
             if (len(sample2)==0):
-                temp_dict={}
-                temp_dict['termid']=[termid];temp_dict['regNumb']=[sample.head(1)['regNumb'].item()]
-                temp_dict['start_time']=[sample_list[k][0]];temp_dict['end_time']=[sample_list[k][1]]
+                temp_dict = {'termid': [termid], 'regNumb': [sample.head(1)['regNumb'].item()]}
+                temp_dict['start_time']=[sample_list[k][0]]
+                temp_dict['end_time']=[sample_list[k][1]]
                 temp_dict['max_time_gap']=[(pd.to_datetime(sample_list[k][1])-pd.to_datetime(sample_list[k][0])).total_seconds()/60]
                 temp_dict['dl_status']= ['Data_Loss']
                 shift_df=pd.DataFrame(temp_dict)
@@ -283,7 +281,9 @@ def ign_not_exist(termid):
     # veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
     veh_df=id_attachment(veh_df)
     groups = cons_id_grouping(veh_df['ID_status'].tolist())
-    groups=[sublist for sublist in groups if not (len(sublist) == 1 and sublist[0] == 0)]
+    groups = [
+        sublist for sublist in groups if len(sublist) != 1 or sublist[0] != 0
+    ]
     list_=[]
     for index,i in enumerate(groups):
         if (i[0]==0)&(len(i)!=1):
@@ -301,10 +301,7 @@ def ign_not_exist(termid):
                 sample = veh_df.loc[i[0]-1:i[-1]]
                 id_ = veh_df.loc[i[-1],'ID_status']
         elif (i[0]!=0)and(veh_df.loc[i[0],'ID_status'] in ['id2','id4','id6','id8'])&(i[-1]+1<=len(veh_df)-1):
-            if veh_df.loc[i[-1]+1,'ID_status'] in ['id1','id3','id5','id7']:
-                sample=veh_df.loc[i[0]-1:i[-1]]
-            else:
-                sample=veh_df.loc[i[0]-1:i[-1]]
+            sample=veh_df.loc[i[0]-1:i[-1]]
             id_=veh_df.loc[i[-1],'ID_status']
         sample = sample.reset_index(drop=True)
         sample['ts'] = pd.to_datetime(sample['ts'])
@@ -376,8 +373,6 @@ def final_threshold_modification(i):
     elif (i['ID_status']=='id7'):
         if (i['total_time']>10)&(i['avg_speed']<1):     #((i['total_time']<5)&(i['avg_speed']<10))or
             i['ID_status']='id5'
-    else:
-        pass
     return i
 
 # def select_ign_time(row):             ### To remove 
@@ -397,8 +392,12 @@ def expand_even_ids(datam):
     even_ids_1 = datam['ID_status'].str.contains(r'id[2468]').fillna(False)
     even_indices = even_ids.index[even_ids_1].tolist()
     for i in even_indices:
-        if (i - 1 >= 0 and not even_ids[i - 1]) and (i + 1 < len(datam) and not even_ids[i + 1]):
-            datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']    
+        if (
+            i >= 1
+            and not even_ids[i - 1]
+            and (i + 1 < len(datam) and not even_ids[i + 1])
+        ):
+            datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']
     return datam
 
 def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addition to ID 
@@ -408,7 +407,8 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
 
     cst_term = new_cst_1[new_cst_1['termid']==i]
     cst_term.reset_index(drop=True,inplace=True)
-    term_df['Refuel_TxID'] = np.nan;term_df['Refuel_Qty']=np.nan
+    term_df['Refuel_TxID'] = np.nan
+    term_df['Refuel_Qty']=np.nan
     timestamp_list = cst_term[cst_term['Refuel_status']=='Refuel']['ts'].tolist()
     endtime_list = cst_term[cst_term['Refuel_status']=='Refuel_end']['ts'].tolist()
     quantities = cst_term[cst_term['Refuel_status']=='Refuel']['Quantity'].tolist()
@@ -442,9 +442,14 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
     term_df.reset_index(drop=True,inplace=True)
     term_df['temporary'] = term_df['Ign_Indicator'].copy()
     end_indices = np.where(term_df['Ign_Indicator'] == 'end')[0]
-    track=[]
-    for j in range(len(end_indices)-1):
-        if 'strt' not in term_df.loc[end_indices[j]:end_indices[j+1]]['Ign_Indicator'].tolist(): track.append(end_indices[j+1])
+    track = [
+        end_indices[j + 1]
+        for j in range(len(end_indices) - 1)
+        if 'strt'
+        not in term_df.loc[end_indices[j] : end_indices[j + 1]][
+            'Ign_Indicator'
+        ].tolist()
+    ]
     term_df.loc[track,'Ign_Indicator']=np.nan
     strt_indices = np.where(term_df['Ign_Indicator'] == 'strt')[0]
     end_indices = np.where(term_df['Ign_Indicator'] == 'end')[0]
@@ -465,17 +470,21 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
             term_df.loc[mask,'Ign_Indicator2'] = 'strt';term_df.loc[mask2,'Ign_Indicator2'] = 'end'
         term_df['temporary'] = term_df['Ign_Indicator2'].copy()
         end_indices = np.where(term_df['Ign_Indicator2'] == 'end')[0]
-        track=[]
-        for i in range(len(end_indices)-1):
-            if 'strt' not in term_df.loc[end_indices[i]:end_indices[i+1]]['Ign_Indicator'].tolist():
-                track.append(end_indices[i+1])
+        track = [
+            end_indices[i + 1]
+            for i in range(len(end_indices) - 1)
+            if 'strt'
+            not in term_df.loc[end_indices[i] : end_indices[i + 1]][
+                'Ign_Indicator'
+            ].tolist()
+        ]
         term_df.loc[track,'Ign_Indicator2']=np.nan
         strt_indices = np.where(term_df['Ign_Indicator2'] == 'strt')[0]
         end_indices = np.where(term_df['Ign_Indicator2'] == 'end')[0]
         for strt, end in zip(strt_indices, end_indices):
             term_df.loc[strt:end,'temporary'] = 'strt'
         term_df['ign_time_igndata'] = 0
-        term_df.loc[~term_df['temporary'].isnull(),'ign_time_igndata'] = term_df['total_time']  
+        term_df.loc[~term_df['temporary'].isnull(),'ign_time_igndata'] = term_df['total_time']
     term_df.drop(['temporary','Ign_Indicator','Ign_Indicator2'],axis=1,inplace=True)
     return pd.DataFrame(term_df)
     # else:
@@ -549,7 +558,13 @@ if __name__ == '__main__':
         # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
         # ign['termid'] = ign['termid'].astype(int)
 
-        termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
+        termid_list = (
+            new_cst_1[
+                new_cst_1['regNumb'].str.startswith(('DJ-', 'DNP-', 'DNU-'))
+            ]['termid']
+            .unique()
+            .tolist()
+        )
         print('Iteration 1: generating ID Buckets')
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
         final_df1 = additional_parameters(final_df)

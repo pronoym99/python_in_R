@@ -53,10 +53,7 @@ def continuous_position_wise_grouping(a):
             is_zero_bucket = False
             buckets.append((start, end))
             start = end
-    if is_zero_bucket:
-        end = len(a)
-        buckets.append((start, end))
-    elif not is_zero_bucket and start != len(a):
+    if is_zero_bucket or start != len(a):
         end = len(a)
         buckets.append((start, end))
     return buckets
@@ -72,14 +69,15 @@ def get_shift_timestamp(date_str):
     datetime_input = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
     input_time = datetime_input.time()
     if input_time >= datetime.strptime('00:00:00', '%H:%M:%S').time() and input_time < datetime.strptime('06:00:00', '%H:%M:%S').time():
-        shift_time = datetime_input.replace(hour=6, minute=0, second=0, microsecond=0)
+        return datetime_input.replace(hour=6, minute=0, second=0, microsecond=0)
     elif input_time >= datetime.strptime('06:00:00', '%H:%M:%S').time() and input_time < datetime.strptime('14:00:00', '%H:%M:%S').time():
-        shift_time = datetime_input.replace(hour=14, minute=0, second=0, microsecond=0)
+        return datetime_input.replace(hour=14, minute=0, second=0, microsecond=0)
     elif input_time >= datetime.strptime('14:00:00', '%H:%M:%S').time() and input_time < datetime.strptime('22:00:00', '%H:%M:%S').time():
-        shift_time = datetime_input.replace(hour=22, minute=0, second=0, microsecond=0)
+        return datetime_input.replace(hour=22, minute=0, second=0, microsecond=0)
     else:
-        shift_time = (datetime_input + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
-    return shift_time
+        return (datetime_input + timedelta(days=1)).replace(
+            hour=6, minute=0, second=0, microsecond=0
+        )
 
 def row_split(start_time,end_time):
     end = str(get_shift_timestamp(start_time))
@@ -99,7 +97,6 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
     buckets=[]
     if len(in_list)==1:
         buckets.append((initial_level,end_level))
-        return buckets
     else:
         in_list.pop(-1)
         for increment in in_list:
@@ -109,7 +106,8 @@ def fuel_interpolation(initial_level, end_level, increments_list,total_time):
             buckets.append((bucket_start, bucket_end))
             initial_level = bucket_end
         buckets.append((buckets[-1][1], end_level))
-        return buckets
+
+    return buckets
 
 def ign_time_cst(a,b):
     # a = ignstatus column ;  b = Time difference column
@@ -170,8 +168,10 @@ def dist_allmods(i):
         sample = sample.reset_index(drop=True)
         sample['ts'] = pd.to_datetime(sample['ts'])
         sample['new_time_diff'] = sample['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
-        start_d = sample.head(1)['date'].item();start_time=sample.head(1)['ts'].item()
-        end_d = sample.tail(1)['date'].item();end_time=sample.tail(1)['ts'].item()
+        start_d = sample.head(1)['date'].item()
+        start_time=sample.head(1)['ts'].item()
+        end_d = sample.tail(1)['date'].item()
+        end_time=sample.tail(1)['ts'].item()
 
         if len(sample['lt']) == 1:
           sample['new_distance'] = 0.0
@@ -189,11 +189,9 @@ def dist_allmods(i):
         ig_time = sample[sample['currentIgn']==1]
         start_level=sample.head(1)['currentFuelVolumeTank1'].item()
         end_level=sample.tail(1)['currentFuelVolumeTank1'].item()
-        if start_d == end_d:
-            date = 'Same'
-        else:
-            date = 'Different'
-        start_shift = sample.head(1)['shift'].item();end_shift=sample.tail(1)['shift'].item()
+        date = 'Same' if start_d == end_d else 'Different'
+        start_shift = sample.head(1)['shift'].item()
+        end_shift=sample.tail(1)['shift'].item()
         total_time = (end_time-start_time).total_seconds()/60
         if (start_shift==end_shift)&(((date=='Same')&((start_shift=='B')or(start_shift=='A')or((start_shift=='C')&(total_time<480))))or((date=='Different')&(start_shift=='C')&(total_time<480))):
             term_dict={}
@@ -292,8 +290,7 @@ def new_fuel(s_time,e_time,s_level,e_level,date):
     total_time = (pd.to_datetime(e_time)-pd.to_datetime(s_time)).total_seconds()/60
     step_size=(e_level-s_level)/total_time
     bucket_size = (date - pd.to_datetime(s_time)).total_seconds()/60
-    new_level = s_level+(bucket_size*step_size)
-    return new_level
+    return s_level+(bucket_size*step_size)
 
 def custom_function(group):
     group_dict = group.to_dict('records')
@@ -310,7 +307,7 @@ def custom_function(group):
 def select_ign_time(row):
     if not row['total_time']:
         return np.nan
-    if ((row['ign_time_ignMaster']/row['total_time'])*100 == 100)or((row['ign_time_ignMaster']/row['total_time'])*100 == 0):
+    if row['ign_time_ignMaster'] / row['total_time'] in [1, 0]:
         return row['ign_time_cst']
     else:
         return row['ign_time_ignMaster']
@@ -365,77 +362,75 @@ def fresh_summary(datam):
 
 
 if __name__ == '__main__':
-    # num_cores = cpu_count()
-    # final_df_list = p_map(dist_allmods, termid_list, num_cpus=num_cores)
-    # final_df=pd.concat(final_df_list)
-    # final_df_dict=final_df.to_dict('records')
-    # integrated_df_list = p_map(ign_time_int, final_df_dict, num_cpus=num_cores)
-    # integrated_df=pd.DataFrame(integrated_df_list)
-    # integrated_df1 = final_data_f(integrated_df)
-
     if len(sys.argv) < 3:
-      print('You need to provide the path of the RDS files as input.\nCST data followed by ignition data.')
+        print('You need to provide the path of the RDS files as input.\nCST data followed by ignition data.')
     else:
-      infile_cst, infile_igtn = Path(sys.argv[1]), Path(sys.argv[2])
+        infile_cst, infile_igtn = Path(sys.argv[1]), Path(sys.argv[2])
 
-      # Check validity of both args at once
-      if infile_cst.suffix == '.RDS':
-        df = pyreadr.read_r(infile_cst)[None]
-      else:
-        df = pd.read_csv(infile_cst)
-      if infile_igtn.suffix == '.RDS':
-        ign = pyreadr.read_r(infile_igtn)[None]
-      else:
-        ign = pd.read_csv(infile_igtn)
-      # df['ts'] = pd.to_datetime(df['ts'], utc=True)
-      # print(df.columns)
-      df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
-      df.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
-      df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      df['date'] = df['ts'].dt.date.astype(str)
-      df['hour'] = df['ts'].dt.hour
+              # Check validity of both args at once
+        df = (
+            pyreadr.read_r(infile_cst)[None]
+            if infile_cst.suffix == '.RDS'
+            else pd.read_csv(infile_cst)
+        )
+        ign = (
+            pyreadr.read_r(infile_igtn)[None]
+            if infile_igtn.suffix == '.RDS'
+            else pd.read_csv(infile_igtn)
+        )
+        # df['ts'] = pd.to_datetime(df['ts'], utc=True)
+        # print(df.columns)
+        df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
+        df.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
+        df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        df['date'] = df['ts'].dt.date.astype(str)
+        df['hour'] = df['ts'].dt.hour
     #   faulty_fuel = df[df['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
     #   df = df[~df['regNumb'].isin(faulty_fuel)]
-      termid_list = df['termid'].unique().tolist()
-      ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-      ign['termid'] = ign['termid'].astype(int)
+        termid_list = df['termid'].unique().tolist()
+        ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+        ign['termid'] = ign['termid'].astype(int)
     #   dist_allmods(1204000258)
-      termid_list = df[df['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()
-      final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
-      final_df_dict=final_df.to_dict('records')
-      integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
-      integrated_df.reset_index(drop=True, inplace=True)
-      grouped = integrated_df.groupby('termid')
-      integrated_df = grouped.progress_apply(custom_function)
-      integrated_df=integrated_df.reset_index(drop=True)
-      integrated_df = final_data_f(integrated_df)
-      integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
-      integrated_df['date1'] = integrated_df['start_time'].dt.date
-      start_time = pd.to_datetime('22:00:00').time()
-      integrated_df['date1'] = integrated_df.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
-      fresh_summary_df = fresh_summary(integrated_df)
-      integrated_df['start_time'] = (integrated_df['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
-      integrated_df['end_time'] = (integrated_df['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
-      if 'b_sl' in integrated_df.columns:
-        integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
+        termid_list = (
+            df[df['regNumb'].str.startswith(('DJ-', 'DNP-', 'DNU-'))]['termid']
+            .unique()
+            .tolist()
+        )
+        final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
+        final_df_dict=final_df.to_dict('records')
+        integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
+        integrated_df.reset_index(drop=True, inplace=True)
+        grouped = integrated_df.groupby('termid')
+        integrated_df = grouped.progress_apply(custom_function)
+        integrated_df=integrated_df.reset_index(drop=True)
+        integrated_df = final_data_f(integrated_df)
+        integrated_df['final_ign_time'] = integrated_df.apply(select_ign_time, axis=1)
+        integrated_df['date1'] = integrated_df['start_time'].dt.date
+        start_time = pd.to_datetime('22:00:00').time()
+        integrated_df['date1'] = integrated_df.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+        fresh_summary_df = fresh_summary(integrated_df)
+        integrated_df['start_time'] = (integrated_df['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
+        integrated_df['end_time'] = (integrated_df['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
+        if 'b_sl' in integrated_df.columns:
+          integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
-      if len(sys.argv) == 3:
-        integrated_df.to_csv('Integrated_dist_allmods.csv')
-        fresh_summary_df.to_csv('fresh_summary.csv')
-        print('Data saved successfully to the above path')
+        if len(sys.argv) == 3:
+          integrated_df.to_csv('Integrated_dist_allmods.csv')
+          fresh_summary_df.to_csv('fresh_summary.csv')
+          print('Data saved successfully to the above path')
 
-      # Check whether the last arg is appropriate
-      elif len(sys.argv) == 5:
-        outfile1 = Path(sys.argv[3])
-        outfile2 = Path(sys.argv[4])
-        if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
-          print('Need to write both outputs to a CSV file only\nExiting....')
-          sys.exit(0)
-        integrated_df.to_csv(outfile1)
-        fresh_summary_df.to_csv(outfile2)
-        print(f'Outputs saved successfully to below paths \n {outfile1} & {outfile2}')
+        # Check whether the last arg is appropriate
+        elif len(sys.argv) == 5:
+          outfile1 = Path(sys.argv[3])
+          outfile2 = Path(sys.argv[4])
+          if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
+            print('Need to write both outputs to a CSV file only\nExiting....')
+            sys.exit(0)
+          integrated_df.to_csv(outfile1)
+          fresh_summary_df.to_csv(outfile2)
+          print(f'Outputs saved successfully to below paths \n {outfile1} & {outfile2}')
 
-      # Check for extra args
-      else:
-        print('Supports atleast 2 and atmost 4 file arguments')
+        # Check for extra args
+        else:
+          print('Supports atleast 2 and atmost 4 file arguments')

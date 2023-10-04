@@ -18,19 +18,17 @@ def internal_agg(df: pd.DataFrame, mods_df: pd.DataFrame, dist, n, termid):
     list_=[]
     max_ = round_to_nearest(df['cumsum_dist_Sir'].max(), n) + dist
     for i in range(dist, max_,dist):
-        temp_dict = {}
         sample = df[i - dist <= df['cumsum_dist_Sir'] <= i]
         if len(sample)!=0:
-            total_time = sample['time_diff'].sum();ig_time = sample.query("currentIgn==1")['time_diff'].sum()
+            total_time = sample['time_diff'].sum()
+            ig_time = sample.query("currentIgn==1")['time_diff'].sum()
             keys=['termid','regNumb','Class','total_samples','start_time','end_time','Initial_level','End_level','Refuel_sum','total_dist','ig_perc']
             values = [sample['termid'].tolist()[0],sample['regNumb'].tolist()[0],termid_class_map[str(termid)],len(sample),
             sample.head(1)['ts'].item(),sample.tail(1)['ts'].item(),sample.head(1)['fuel'].item(),sample.tail(1)['fuel'].item(),sample['REfuel_unique'].sum(),
             sample['disthav'].sum(),ig_time/total_time]
+            temp_dict = {}
             temp_dict.update(zip(keys,values))
             list_.append(temp_dict)
-        else:
-            pass
-
     return list_
 
 def distance_algo(input_df: pd.DataFrame, input_mods_df: pd.DataFrame, termid) -> pd.DataFrame:
@@ -58,19 +56,18 @@ def hour_algo(input_df: pd.DataFrame, input_mods_df: pd.DataFrame):
     list_=[]
     max_ = (lambda x: round(x+120) if x%120!=0 else x)(df['Cum_Timediff'].max())
     for i in range(120,max_,120):
-        temp_dict={}
         sample = df[(df['Cum_Timediff']>(i-120))&(df['Cum_Timediff']<i)]
         if len(sample)!=0:
-            total_time = sample['time_diff'].sum();ig_time = sample.query("currentIgn==1")['time_diff'].sum()
+            total_time = sample['time_diff'].sum()
+            ig_time = sample.query("currentIgn==1")['time_diff'].sum()
             keys = ['term_id','regNumb','total_sample','start_time','end_time','total_time(approx)','start_level','end_level',
                     'Refuel_sum','total_dist','ignPerc','RollmeanLph','RollmeanLp100']
             values=[sample['termid'].iloc[0],sample['regNumb'].iloc[0],len(sample),sample.head(1)['ts'].item(),sample.tail(1)['ts'].item(),
                    sample['time_diff'].sum(),sample.head(1)['fuel'].item(),sample.tail(1)['fuel'].item(),
                     sample['REfuel_unique'].sum(),sample['disthav'].sum(),(ig_time/total_time),sample['lph'].mean(),sample['lp100km'].mean()]
+            temp_dict={}
             temp_dict.update(zip(keys,values))
             list_.append(temp_dict)
-        else:
-            pass
     hour_df = pd.DataFrame(list_)
     hour_df['Fuel_cons'] = hour_df['start_level'] - hour_df['end_level']
     hour_df['New_Fuel_cons'] = hour_df['Fuel_cons']+hour_df['Refuel_sum']
@@ -106,8 +103,6 @@ def fuel_algo(input_df,input_mods_df):
     #             temp_dict['rollMean_lph'] = sample['lph'].mean()
     #             temp_dict['rollMean_lp100km'] = sample['lp100km'].mean()
             list_.append(temp_dict)
-        else:
-            pass
     fuel_df = pd.DataFrame(list_)
     fuel_df['Total_time'] = (fuel_df['end_time']-fuel_df['start_time']).dt.total_seconds()/60
     fuel_df['lph'] = (fuel_df['Total_Cons']/fuel_df['Total_time'])*60
