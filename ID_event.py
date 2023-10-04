@@ -101,13 +101,6 @@ def ign_time_cst(a,b): # output -> final ign time for each event
 #     print(f'my ign_time_cst function execution time:{time.time()-s_t}s')
     return ign_time
 
-
-def select_ign_time(row):     # row wise , Returns row
-    if ((row['ign_time_igndata']/row['total_time'])*100 == 100)or((row['ign_time_igndata']/row['total_time'])*100 == 0):
-        return row['ign_time_cst']
-    else:
-        return row['ign_time_igndata']
-
 def Off_On_grouping(indicator):
     buckets = []
     start_position = None
@@ -180,14 +173,17 @@ def ign_exist(termid):
         veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
     if groups[0][0]!=0:
         veh_df.loc[:groups[0][0]-1,'currentIgn']=0
-    combined=[]
-    for i in range(len(groups)):
-        combined.append(groups[i])
-        combined.append(reverse_groups[i])
-    combined.insert(0,(0,groups[0][0]))
+    groups.extend(reverse_groups)
+    combined = sorted(groups)
+
+    # comb=veh_df[~veh_df['Indicator'].isnull()].index.tolist()
+    # combined=[(comb[i],comb[i+1]) for i in range(len(comb)-1)]
+    # # combined2=sorted(combined2)
+    combined.insert(0,(0,combined[0][0]))
     if combined[0][0]==combined[0][1]==0:
         combined.pop(0)
-    # print(veh_df)
+    # print(combined)
+
     final_term_df=pd.DataFrame()
     for i in combined:
         sample = veh_df.loc[i[0]:i[-1]]
@@ -198,6 +194,7 @@ def ign_exist(termid):
         #     sample.loc[sample.index[-1],'currentIgn']=0
         start_time=sample.head(1)['ts'].item()
         end_time=sample.tail(1)['ts'].item()
+        sample.sort_values(by=['ts'],inplace=True)
         sample_list = row_split(str(start_time),str(end_time))
         l=[]
         for k in range(len(sample_list)):
@@ -251,17 +248,17 @@ def ign_exist(termid):
             final_term_df=pd.concat([final_term_df,strt_end_df])
             final_term_df.reset_index(drop=True,inplace=True)
 
-    veh_ign = ign[ign['termid']==termid]
-    # if len(veh_ign)!=0:
-    veh_ign = veh_ign.reset_index(drop=True)
-    veh_f_df_dict = final_term_df.to_dict('records')
-    for row in veh_f_df_dict:
-        ign_ = veh_ign.loc[(((veh_ign['strt']<=row['end_time'])&(veh_ign['strt']>=row['start_time'])) | ((veh_ign['end']<=row['end_time'])&(veh_ign['end']>=row['start_time'])) | ((veh_ign['strt']<=row['start_time'])&(veh_ign['end']>=row['end_time'])))]
-        ign_.loc[ign_['strt']<row['start_time'],'strt']=row['start_time']
-        ign_.loc[ign_['end']>row['end_time'],'end']=row['end_time']
-        ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
-        row['ign_time_igndata'] = sum(ign_['dur(mins)'])
-    final_term_df = pd.DataFrame(veh_f_df_dict)
+    # veh_ign = ign[ign['termid']==termid]                   ### To remove 
+    # # if len(veh_ign)!=0:
+    # veh_ign = veh_ign.reset_index(drop=True)
+    # veh_f_df_dict = final_term_df.to_dict('records')
+    # for row in veh_f_df_dict:
+    #     ign_ = veh_ign.loc[(((veh_ign['strt']<=row['end_time'])&(veh_ign['strt']>=row['start_time'])) | ((veh_ign['end']<=row['end_time'])&(veh_ign['end']>=row['start_time'])) | ((veh_ign['strt']<=row['start_time'])&(veh_ign['end']>=row['end_time'])))]
+    #     ign_.loc[ign_['strt']<row['start_time'],'strt']=row['start_time']
+    #     ign_.loc[ign_['end']>row['end_time'],'end']=row['end_time']
+    #     ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
+    #     row['ign_time_igndata'] = sum(ign_['dur(mins)'])
+    # final_term_df = pd.DataFrame(veh_f_df_dict)
     # else:
     #     final_term_df['ign_time_igndata'] = 0
     return final_term_df
@@ -343,13 +340,12 @@ def ign_not_exist(termid):
 
     return ff
 
+
 def final_id_grouping(i):
     if new_cst_1[new_cst_1['termid']==i]['Indicator'].nunique()!=0:
         return ign_exist(i)
     else:
         return ign_not_exist(i)
-
-    # return result
 
 
 def additional_parameters(final_df):
@@ -384,31 +380,13 @@ def final_threshold_modification(i):
         pass
     return i
 
-def select_ign_time(row):
-    if not row['total_time']:
-        return np.nan
-    if ((row['ign_time_igndata']/row['total_time'])*100 == 0)&(row['ign_cst']<row['total_time']):
-        return row['ign_cst']
-    else:
-        return row['ign_time_igndata']
-
-    # def print_eda(datam):
-    #     datam['date'] = datam['start_time'].dt.date
-    #     start_time = pd.to_datetime('22:00:00').time()
-    #     datam['date'] = datam.apply(lambda row: row['date'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
-    #     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['ID_status'] in  else 0,axis=1)
-    #     datam['tottime_stop'] = datam.apply(lambda row: row['total_time'] if row['status']=='stationary' else 0,axis=1)
-    #     datam['tottime_stop_ign_on'] = datam.apply(lambda row: row['final_ign_time'] if row['status']=='stationary' else 0,axis=1)
-    #     datam['totdist_move'] = datam.apply(lambda row: row['total_dist'] if row['status']=='movement' else 0,axis=1)
-    #     print_eda=datam.groupby(['reg_numb','date']).agg({'totdist_move':'sum','total_time':'sum','final_ign_time':'sum','tottime_move':'sum','tottime_stop':'sum','tottime_stop_ign_on':'sum'}).reset_index()
-    #     print_eda.rename(columns={'date':'date1','totdist_move':'km_dist','total_time':'hours_timespan','final_ign_time':'hours_ign_on','tottime_move':'hours_move','tottime_stop':'hours_idle','tottime_stop_ign_on':'hours_idle_on'},inplace=True)
-    #     print_eda['km_dist'] = print_eda['km_dist']/1000
-    #     print_eda[['hours_timespan','hours_ign_on','hours_move','hours_idle','hours_idle_on']] /=60
-    #     print_eda['hours_idle_off'] = print_eda['hours_idle']-print_eda['hours_idle_on']
-    #     print_eda['idle_pct'] = print_eda['hours_idle']/print_eda['hours_timespan']
-    #     print_eda['idleon_pct'] = print_eda['hours_idle_on']/print_eda['hours_idle']
-    #     print_eda['mach_util_pct'] = print_eda['hours_ign_on']/print_eda['hours_timespan']
-    #     return print_eda
+# def select_ign_time(row):             ### To remove 
+#     if not row['total_time']:
+#         return np.nan
+#     if ((row['ign_time_igndata']/row['total_time'])*100 == 0)&(row['ign_cst']<row['total_time']):
+#         return row['ign_cst']
+#     else:
+#         return row['ign_time_igndata']
 
 desired_order = ['C', 'A', 'B']
 def shift_order(x):
@@ -423,54 +401,86 @@ def expand_even_ids(datam):
             datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']    
     return datam
 
-def even_b_odd_refuel_add_to_ID(i):
+def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addition to ID 
     term_df = final_df2[final_df2['termid']==i]    # final_df2
     term_df.reset_index(drop=True,inplace=True)
     term_df = expand_even_ids(term_df)
 
     cst_term = new_cst_1[new_cst_1['termid']==i]
     cst_term.reset_index(drop=True,inplace=True)
+    term_df['Refuel_TxID'] = np.nan;term_df['Refuel_Qty']=np.nan
     timestamp_list = cst_term[cst_term['Refuel_status']=='Refuel']['ts'].tolist()
     endtime_list = cst_term[cst_term['Refuel_status']=='Refuel_end']['ts'].tolist()
     quantities = cst_term[cst_term['Refuel_status']=='Refuel']['Quantity'].tolist()
     tx_list = cst_term[cst_term['Refuel_status']=='Refuel']['TxId'].tolist()
-    if len(timestamp_list)!=0:
-        for timestamp,endtime,quantity,txid in zip(timestamp_list,endtime_list,quantities,tx_list):
+    ign_strt_list = cst_term[cst_term['Indicator']=='strt']['ts'].tolist()
+    ign_end_list = cst_term[cst_term['Indicator']=='end']['ts'].tolist()
+    for timestamp,endtime,quantity,txid in zip(timestamp_list,endtime_list,quantities,tx_list):
             timestamp = pd.to_datetime(timestamp);end = pd.to_datetime(endtime)
             mask = (timestamp >= term_df['start_time']) & (timestamp < term_df['end_time'])
             mask2 = (end > term_df['start_time']) & (end <= term_df['end_time'])
-            term_df.loc[mask,'Refuel_TxID'] = txid ; term_df.loc[mask2,'Refuel_TxID'] = txid
-            term_df.loc[mask,'Refuel_Qty'] = quantity
+            term_df.loc[mask,'Refuel_TxID'] = txid ; term_df.loc[mask2,'Refuel_TxID'] = txid;term_df.loc[mask,'Refuel_Qty'] = quantity
+    if len(timestamp_list)!=0:
         txid_list_ID = term_df['Refuel_TxID'].tolist()
         prev_digit = None
-        for i in range(len(txid_list_ID)):
-            if not math.isnan(txid_list_ID[i]):
-                if prev_digit is not None and prev_digit == txid_list_ID[i]:
-                    # Replace NaN values between identical digits
-                    for j in range(i - 1, prev_index, -1):
-                        if math.isnan(txid_list_ID[j]): txid_list_ID[j] = prev_digit
+        for j in range(len(txid_list_ID)):
+            if not math.isnan(txid_list_ID[j]):
+                if prev_digit is not None and prev_digit == txid_list_ID[j]:
+                    for k in range(j - 1, prev_index, -1):
+                        if math.isnan(txid_list_ID[k]): txid_list_ID[k] = prev_digit
                         else: break
-                prev_digit = txid_list_ID[i]
-                prev_index = i
+                prev_digit = txid_list_ID[j]
+                prev_index = j
         term_df['Refuel_TxID'] = txid_list_ID
 
-        return pd.DataFrame(term_df)
-    else:
-        term_df['Refuel_TxID'] = 'NaN'
-        term_df['Refuel_Qty'] = 'NaN'
-        return term_df
+    ## Final Synthetic Ignition Column Calculation
+    for strt,ignend in zip(ign_strt_list,ign_end_list):
+        ign_strt = pd.to_datetime(strt);ign_end=pd.to_datetime(ignend)
+        mask3 = (ign_strt >= term_df['start_time']) & (ign_strt < term_df['end_time'])
+        mask4 = (ign_end > term_df['start_time']) & (ign_end <= term_df['end_time'])
+        term_df.loc[mask3,'Ign_Indicator'] = 'strt';term_df.loc[mask4,'Ign_Indicator'] = 'end'
+    term_df.reset_index(drop=True,inplace=True)
+    term_df['temporary'] = term_df['Ign_Indicator'].copy()
+    end_indices = np.where(term_df['Ign_Indicator'] == 'end')[0]
+    track=[]
+    for j in range(len(end_indices)-1):
+        if 'strt' not in term_df.loc[end_indices[j]:end_indices[j+1]]['Ign_Indicator'].tolist(): track.append(end_indices[j+1])
+    term_df.loc[track,'Ign_Indicator']=np.nan
+    strt_indices = np.where(term_df['Ign_Indicator'] == 'strt')[0]
+    end_indices = np.where(term_df['Ign_Indicator'] == 'end')[0]
+    for strt, end in zip(strt_indices, end_indices):
+        term_df.loc[strt:end,'temporary'] = 'strt'
+    term_df['final_ign_time'] = 0
+    term_df.loc[term_df['temporary'].isnull()==False,'final_ign_time'] = term_df['total_time']
 
-# def refuel_add_to_ID(termid):
-#     term_df = new_cst_1[new_cst_1['termid']==termid]
-#     term_df.reset_index(drop=True,inplace=True)
-#     id_term = final_df2[final_df2['termid']==termid]    
-#     id_term.reset_index(drop=True,inplace=True)
-#     timestamp_list = term_df[term_df['Refuel_status']=='Refuel']['ts'].tolist()
-#     for timestamp in timestamp_list:
-#         timestamp = pd.to_datetime(timestamp)
-#         mask = (timestamp >= id_term['start_time']) & (timestamp < id_term['end_time'])
-#         id_term.loc[mask,'Refuel_status'] = 'Refuel'
-#     return pd.DataFrame(id_term)
+    ## Ign Master Calculation 
+    term_df['Ign_Indicator2'] = np.nan
+    ign_master_strt_list = cst_term[~cst_term['Is_Ignition'].isnull()].query("Indicator == 'strt'")['ts'].tolist()
+    ign_master_end_list = cst_term[~cst_term['Is_Ignition'].isnull()].query("Indicator == 'end'")['ts'].tolist()
+    if len(ign_master_strt_list) !=0:
+        for strt,ignend in zip(ign_master_strt_list,ign_master_end_list):
+            ign_strt = pd.to_datetime(strt);ign_end=pd.to_datetime(ignend)
+            mask = (ign_strt >= term_df['start_time']) & (ign_strt < term_df['end_time'])
+            mask2 = (ign_end > term_df['start_time']) & (ign_end <= term_df['end_time'])
+            term_df.loc[mask,'Ign_Indicator2'] = 'strt';term_df.loc[mask2,'Ign_Indicator2'] = 'end'
+        term_df['temporary'] = term_df['Ign_Indicator2'].copy()
+        end_indices = np.where(term_df['Ign_Indicator2'] == 'end')[0]
+        track=[]
+        for i in range(len(end_indices)-1):
+            if 'strt' not in term_df.loc[end_indices[i]:end_indices[i+1]]['Ign_Indicator'].tolist():
+                track.append(end_indices[i+1])
+        term_df.loc[track,'Ign_Indicator2']=np.nan
+        strt_indices = np.where(term_df['Ign_Indicator2'] == 'strt')[0]
+        end_indices = np.where(term_df['Ign_Indicator2'] == 'end')[0]
+        for strt, end in zip(strt_indices, end_indices):
+            term_df.loc[strt:end,'temporary'] = 'strt'
+        term_df['ign_time_igndata'] = 0
+        term_df.loc[~term_df['temporary'].isnull(),'ign_time_igndata'] = term_df['total_time']  
+    term_df.drop(['temporary','Ign_Indicator','Ign_Indicator2'],axis=1,inplace=True)
+    return pd.DataFrame(term_df)
+    # else:
+    #     term_df['Refuel_TxID'] = 'NaN';term_df['Refuel_Qty'] = 'NaN';term_df[['Ign_strt','Ign_end']] = 'NaN'
+    #     return term_df
 
 def fresh_summary(datam):
     datam['tottime_move'] = datam.apply(lambda row: row['total_time'] if row['veh_status']=='movement' else 0,axis=1)
@@ -498,62 +508,61 @@ def fresh_summary(datam):
 
 
 if __name__ == '__main__':
-
-    # new_cst_1 = pd.read_csv('../OUTPUT_DATA/sept/synthetic_1_10.csv')
+    # print(len(sys.argv))
+    # new_cst_1 = pd.read_csv('../OUTPUT_DATA/oct/3_Oct_Synthetic_data.csv')
     # new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-    # # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-03 13:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-03 14:00:00'))]
-    # ign = pyreadr.read_r('../INPUT_DATA/data/sept/debug_testing/ignmaster_updated_on_20th.RDS')[None]
+    # # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-10-01 06:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-10-01 14:00:00'))]
+    # ign = pyreadr.read_r('../INPUT_DATA/data/oct/dtign_upto_3rdOct.RDS')[None]
     # ign.rename(columns={'stop':'end'},inplace=True)
     # ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
     # ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
     # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
     # ign['termid'] = ign['termid'].astype(int)
-    # trial =final_id_grouping(1204000266)
+    # trial =final_id_grouping(1204000257)
     # trial1 = additional_parameters(trial)
-    # trial_dict=trial1.to_dict('records')
-    # trial2 = pd.DataFrame([final_threshold_modification(i) for i in trial_dict])
+    # trial2 = trial1.copy()
     # trial2['final_ign_time'] = trial2.apply(select_ign_time, axis=1)
     # trial2['date1'] = trial2['start_time'].dt.date
     # start_time = pd.to_datetime('22:00:00').time()
     # trial2['date1'] = trial2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
     # trial2['veh_status'] = trial2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
     # # trial2.to_csv('../OUTPUT_DATA/sept/266_bug.csv')
-    # trial2 = even_b_odd(1204000266)
+    # trial2 = even_b_odd_refuel_add_to_ID(1204000257)
+    # trial_dict=trial2.to_dict('records')
+    # trial2 = pd.DataFrame([final_threshold_modification(i) for i in trial_dict])
     # tr_fs = fresh_summary(trial2)
     # print('Done!')
 
 
-    if (len(sys.argv) < 3) or (Path(sys.argv[1]).suffix!='.csv') or (Path(sys.argv[2]).suffix!='.RDS'):
-        print('InputFileError: Kindly pass the Enriched cst in csv format followed by Ignition Master file in RDS format.\nExiting...')
+    if (len(sys.argv) < 2) or (Path(sys.argv[1]).suffix!='.csv'):
+        print('InputFileError: Kindly pass the Enriched cst in csv format.\nExiting...')
         sys.exit(0)
     else:
-        enriched_cst,ign_file = Path(sys.argv[1]),Path(sys.argv[2])
+        enriched_cst = Path(sys.argv[1])   # ,ign_file   , ,Path(sys.argv[2]
 
         new_cst_1 = pd.read_csv(enriched_cst)
         new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-07 14:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-08 14:00:00'))]
-        ign = pyreadr.read_r(ign_file)[None]
-        ign.rename(columns={'stop':'end'},inplace=True)
-        ign[['strt', 'end']] = ign[['IgnON', 'IgnOFF']].apply(lambda x: pd.to_datetime(x, unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None))
-        ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
-        ign['termid'] = ign['termid'].astype(int)
+        # ign = pyreadr.read_r(ign_file)[None]
+        # ign.rename(columns={'stop':'end'},inplace=True)
+        # ign[['strt', 'end']] = ign[['IgnON', 'IgnOFF']].apply(lambda x: pd.to_datetime(x, unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None))
+        # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
+        # ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
-        # termid_list=[1204000266]
         print('Iteration 1: generating ID Buckets')
-        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
+        final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list[:5])])
         final_df1 = additional_parameters(final_df)
-        final_df_dict=final_df1.to_dict('records')
-        print('Iteration 2: Modification of IDs based on Thresholds')
-        final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
-        final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)
+        final_df2 = final_df1.copy()
+        # final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)
         final_df2['date1'] = final_df2['start_time'].dt.date
         start_time = pd.to_datetime('22:00:00').time()
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
-        print('Iteration 3 : Modification of even IDs ign for single in-between occurrences and Refuel attributes add')
-        final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list)])
-        # print('Iteration')
-        # final_df2 = pd.concat([refuel_add_to_ID(i) for i in tqdm(termid_list)])
+        print('Iteration 2 : Modification of even IDs ign for single in-between occurrences and Refuel/Ign attributes add')
+        final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list[:5])])
+        final_df_dict=final_df2.to_dict('records')
+        print('Iteration 3: Modification of IDs based on Thresholds')
+        final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
         print('Iteration 4: Fresh Summary Calculation')
         fresh_summary_df = fresh_summary(final_df2)
@@ -561,28 +570,29 @@ if __name__ == '__main__':
         final_df2.rename(columns={'regNumb':'reg_numb','ign_time_igndata':'ign_time_ignMaster','ign_cst':'ign_time_cst'},inplace=True)
         final_df2['start_time'] = (final_df2['start_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
-        print('Results have been generated successfully!\n Looking for output paths to save... ')
-        #  NO Output Paths are given
-        if len(sys.argv) == 3:
+        print('Output Files have been generated successfully! Looking for output paths to save... ')
+
+        # If NO Output Paths are given
+        if len(sys.argv) == 2:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')
             print('ID Data saved successfully into your Working Directory.')
 
         # Only one Output Path is given
-        elif len(sys.argv) == 4:
+        elif len(sys.argv) == 3:
             print('OutPutFileError: Kindly pass two Output File Paths for Id_event data followed by the Fresh Summary in csv format\nExiting...')
             sys.exit(0)
 
         # Two Outputs Paths are given in required format
-        elif len(sys.argv)==5:
-            outfile1 = Path(sys.argv[3])
-            outfile2 = Path(sys.argv[4])
+        elif len(sys.argv)==4:
+            outfile1 = Path(sys.argv[2])
+            outfile2 = Path(sys.argv[3])
             if (outfile1.suffix != '.csv')or(outfile2.suffix != '.csv'):
                 print('Need to write both outputs to CSV files only\nExiting....')
                 sys.exit(0)
             final_df2.to_csv(outfile1)
             fresh_summary_df.to_csv(outfile2)
-            print(f' ID data followed by fresh summary data are successfully saved to below path\n {outfile1} & {outfile2}.')
+            print(f' ID data followed by fresh summary data successfully saved to below path\n {outfile1} & {outfile2}.')
         # Check for extra args
         else:
-            print('Supports atleast 1 or 2 file arguments.')
+            print('Supports atleast 1 or 3 file arguments.')

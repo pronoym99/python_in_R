@@ -20,6 +20,12 @@ warnings.filterwarnings("ignore")
 pd.set_option('display.max_rows', 150)
 from multiprocess import cpu_count
 
+def categorize_shift(hour: int) -> str:
+    if 6 <= hour < 14:
+        return 'A'
+    elif 14 <= hour < 22:
+        return 'B'
+    return 'C'
 
 def calculate_consecutive_haversine_distances(df):
     distances = []
@@ -337,7 +343,7 @@ if __name__ == '__main__':
       ign = pyreadr.read_r(infile_igtn)[None]
       faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       cst = cst[~cst['regNumb'].isin(faulty_fuel)]
-      start_time = cst['ts'].min();end_time=cst['ts'].max()
+      start_time1 = cst['ts'].min();end_time1=cst['ts'].max()
       ign.rename(columns={'stop':'end'}, inplace=True)
       ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
@@ -358,6 +364,8 @@ if __name__ == '__main__':
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
+
+                                                           ### Upto this execution time
       print("Iteration 1: Refuel concatenation to CST")
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
       print("Iteration 2: Refuel end times injection into CST")
@@ -381,7 +389,7 @@ if __name__ == '__main__':
       new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       print('Synthetic CST has been generated successfully! ')
-
+      new_cst_1 = new_cst_1[(new_cst_1['ts']>=start_time1)&(new_cst_1['ts']<=end_time1)]
     # Error Logging for Output Files
       if len(sys.argv) == 4:
         new_cst_1.to_csv('New_Synthetic_CST.csv')
