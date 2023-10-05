@@ -525,7 +525,7 @@ if __name__ == '__main__':
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         print('Output Files have been generated successfully! Looking for output paths to save... ')
 
-        If NO Output Paths are given
+        #  If NO Output Paths are given
         if len(sys.argv) == 2:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')

@@ -320,12 +320,14 @@ def shift_custom_function(group):                    # Injection of shift points
 
 def custom_function(group):                         #  Running for each termid group
 
+    start_time1 = group['ts'].min();end_time1 = group['ts'].max()
     group_1 = group.groupby('date')
     group_result = group_1.apply(shift_custom_function)
     group_result=group_result.reset_index(drop=True)
     # group_result['mine']= group.head(1)['mine'].item()
     # group_result['class'] = group.head(1)['mine'].item()
     group_result['Distance'] = group_result['cum_distance'].diff().fillna(0)
+    group_result = group_result[(group_result['ts']>=start_time1)&(group_result['ts']<=end_time1)]
     return group_result
 
 
@@ -380,7 +382,7 @@ if __name__ == '__main__':
                                                            ### Upto this execution time
       print("Iteration 1: Refuel concatenation to CST")
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
-      
+
       print("Iteration 2: Refuel end times injection into CST")
       disp_cst2 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
 
