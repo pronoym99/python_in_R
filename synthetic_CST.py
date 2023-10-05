@@ -41,7 +41,19 @@ def disp_cst(i):                              # Injection of Hecpoll refuel star
     term_df = cst[cst['regNumb']==i]
     term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
     term_df.reset_index(drop=True,inplace=True)
-    term_df['Distance'] = calculate_consecutive_haversine_distances(term_df)
+
+    if len(term_df['lt']) == 1:
+        term_df['Distance'] = 0.0
+    else:
+        # lt = sample['lt'].to_numpy()
+        # lg = sample['lg'].to_numpy()
+        # Calculate haversine distances using haversine_vector
+        coordinates = np.column_stack((term_df['lt'], term_df['lg']))
+        haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
+        haversine_distances = np.concatenate(([0.0], haversine_distances))
+        term_df['Distance'] = haversine_distances
+
+    # term_df['Distance'] = calculate_consecutive_haversine_distances(term_df)
     term_df['cum_distance'] = term_df['Distance'].cumsum().fillna(0)
     disp_df = disp[disp['regNumb']==i]
     if len(disp_df)!=0:
@@ -368,10 +380,10 @@ if __name__ == '__main__':
                                                            ### Upto this execution time
       print("Iteration 1: Refuel concatenation to CST")
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
+      
       print("Iteration 2: Refuel end times injection into CST")
       disp_cst2 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
-    #   print("Iteration 3: Cumulative Dist Interpolation for Refuel start-ends")
-    #   disp_cst2 = pd.concat([refuel_end_cum_distance(i) for i in tqdm(termid_list)])
+
       print("Iteration 3: Ignition Concatenation to CST")
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
       new_cst = new_cst.reset_index(drop=True)
@@ -379,6 +391,7 @@ if __name__ == '__main__':
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
       grouped = new_cst.groupby('termid')
+
       print("Iteration 4: Shift times injection to CST")
       new_cst_1=grouped.progress_apply(custom_function)
       new_cst_1=new_cst_1.reset_index(drop=True)

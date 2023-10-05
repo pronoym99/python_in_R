@@ -101,42 +101,6 @@ def ign_time_cst(a,b): # output -> final ign time for each event
 #     print(f'my ign_time_cst function execution time:{time.time()-s_t}s')
     return ign_time
 
-def Off_On_grouping(indicator):
-    buckets = []
-    start_position = None
-    for i, value in enumerate(indicator):
-        if value == 'end':
-            if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
-            start_position = i
-        elif value == 'strt':
-            if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
-                start_position = None
-    if start_position is not None:
-        buckets.append((start_position, len(indicator)))
-    return buckets
-
-
-def From_Togrouping(indicator,from_,to_):
-    buckets = []
-    start_position = None
-    for i, value in enumerate(indicator):
-        if value == from_:
-            if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
-            start_position = i
-        elif value == to_:
-            if start_position is not None:
-                end_position = i
-                buckets.append((start_position, end_position))
-                start_position = None
-    if start_position is not None:
-        buckets.append((start_position, len(indicator)))
-    return buckets
 
 binary_to_id = {(1, 1, 1): 'id1',(0, 1, 0): 'id2',(1, 0, 1): 'id3',(0, 1, 1): 'id4',(1, 0, 0): 'id5',
 (0, 0, 1): 'id6',(1, 1, 0): 'id7',(0, 0, 0): 'id8'}
@@ -164,10 +128,16 @@ def ign_exist(termid):
     veh_df.reset_index(drop=True,inplace=True)
     veh_df['ts'] = pd.to_datetime(veh_df['ts'])
 
-    groups = From_Togrouping(veh_df['Indicator'].tolist(),'strt','end')
+    gr = veh_df[~veh_df['Indicator'].isnull()].index.tolist()
+    groups = [(gr[i], gr[i+1]) for i in range(0, len(gr) - 1, 2)]
+
+    r_gr = gr.copy(); r_gr.pop(0)
+    reverse_groups = [(r_gr[i], r_gr[i+1]) for i in range(0, len(r_gr) - 1, 2)]
+    if r_gr[-1] != len(veh_df)-1 : reverse_groups.append((r_gr[-1],len(veh_df)))
+
     for i in groups:
         veh_df.loc[i[0]:i[-1],'currentIgn']=1
-    reverse_groups = From_Togrouping(veh_df['Indicator'].tolist(),'end','strt')
+    # reverse_groups = From_Togrouping(veh_df['Indicator'].tolist(),'end','strt')
     veh_df.loc[veh_df['currentIgn'].isnull(),'currentIgn']=0
     for i in reverse_groups:
         veh_df.loc[i[0]+1:i[-1]-1,'currentIgn']=0
@@ -176,15 +146,12 @@ def ign_exist(termid):
     groups.extend(reverse_groups)
     combined = sorted(groups)
 
-    # comb=veh_df[~veh_df['Indicator'].isnull()].index.tolist()
-    # combined=[(comb[i],comb[i+1]) for i in range(len(comb)-1)]
-    # # combined2=sorted(combined2)
     combined.insert(0,(0,combined[0][0]))
     if combined[0][0]==combined[0][1]==0:
         combined.pop(0)
-    # print(combined)
 
     final_term_df=pd.DataFrame()
+
     for i in combined:
         sample = veh_df.loc[i[0]:i[-1]]
         sample.reset_index(drop=True,inplace=True)
@@ -248,19 +215,6 @@ def ign_exist(termid):
             final_term_df=pd.concat([final_term_df,strt_end_df])
             final_term_df.reset_index(drop=True,inplace=True)
 
-    # veh_ign = ign[ign['termid']==termid]                   ### To remove 
-    # # if len(veh_ign)!=0:
-    # veh_ign = veh_ign.reset_index(drop=True)
-    # veh_f_df_dict = final_term_df.to_dict('records')
-    # for row in veh_f_df_dict:
-    #     ign_ = veh_ign.loc[(((veh_ign['strt']<=row['end_time'])&(veh_ign['strt']>=row['start_time'])) | ((veh_ign['end']<=row['end_time'])&(veh_ign['end']>=row['start_time'])) | ((veh_ign['strt']<=row['start_time'])&(veh_ign['end']>=row['end_time'])))]
-    #     ign_.loc[ign_['strt']<row['start_time'],'strt']=row['start_time']
-    #     ign_.loc[ign_['end']>row['end_time'],'end']=row['end_time']
-    #     ign_['dur(mins)']=(ign_['end']-ign_['strt'])/timedelta(minutes=1)
-    #     row['ign_time_igndata'] = sum(ign_['dur(mins)'])
-    # final_term_df = pd.DataFrame(veh_f_df_dict)
-    # else:
-    #     final_term_df['ign_time_igndata'] = 0
     return final_term_df
 
 def ign_not_exist(termid):
@@ -543,27 +497,26 @@ if __name__ == '__main__':
         new_cst_1 = pd.read_csv(enriched_cst)
         new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
         # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-07 14:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-08 14:00:00'))]
-        # ign = pyreadr.read_r(ign_file)[None]
-        # ign.rename(columns={'stop':'end'},inplace=True)
-        # ign[['strt', 'end']] = ign[['IgnON', 'IgnOFF']].apply(lambda x: pd.to_datetime(x, unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None))
-        # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
-        # ign['termid'] = ign['termid'].astype(int)
 
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
         print('Iteration 1: generating ID Buckets')
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
+
         final_df1 = additional_parameters(final_df)
         final_df2 = final_df1.copy()
         # final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)
         final_df2['date1'] = final_df2['start_time'].dt.date
         start_time = pd.to_datetime('22:00:00').time()
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
+        
         print('Iteration 2 : Modification of even IDs ign for single in-between occurrences and Refuel/Ign attributes add')
         final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list)])
         final_df_dict=final_df2.to_dict('records')
+
         print('Iteration 3: Modification of IDs based on Thresholds')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
+        
         print('Iteration 4: Fresh Summary Calculation')
         fresh_summary_df = fresh_summary(final_df2)
 
@@ -572,7 +525,7 @@ if __name__ == '__main__':
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         print('Output Files have been generated successfully! Looking for output paths to save... ')
 
-        # If NO Output Paths are given
+        If NO Output Paths are given
         if len(sys.argv) == 2:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')
