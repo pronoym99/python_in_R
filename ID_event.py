@@ -334,7 +334,7 @@ def final_threshold_modification(i):
         pass
     return i
 
-# def select_ign_time(row):             ### To remove 
+# def select_ign_time(row):             ### To remove
 #     if not row['total_time']:
 #         return np.nan
 #     if ((row['ign_time_igndata']/row['total_time'])*100 == 0)&(row['ign_cst']<row['total_time']):
@@ -352,10 +352,10 @@ def expand_even_ids(datam):
     even_indices = even_ids.index[even_ids_1].tolist()
     for i in even_indices:
         if (i - 1 >= 0 and not even_ids[i - 1]) and (i + 1 < len(datam) and not even_ids[i + 1]):
-            datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']    
+            datam.at[i + 1, 'ID_status'] = datam.at[i, 'ID_status']
     return datam
 
-def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addition to ID 
+def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addition to ID
     term_df = final_df2[final_df2['termid']==i]    # final_df2
     term_df.reset_index(drop=True,inplace=True)
     term_df = expand_even_ids(term_df)
@@ -407,7 +407,7 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
     term_df['final_ign_time'] = 0
     term_df.loc[term_df['temporary'].isnull()==False,'final_ign_time'] = term_df['total_time']
 
-    ## Ign Master Calculation 
+    ## Ign Master Calculation
     term_df['Ign_Indicator2'] = np.nan
     ign_master_strt_list = cst_term[~cst_term['Is_Ignition'].isnull()].query("Indicator == 'strt'")['ts'].tolist()
     ign_master_end_list = cst_term[~cst_term['Is_Ignition'].isnull()].query("Indicator == 'end'")['ts'].tolist()
@@ -429,7 +429,7 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
         for strt, end in zip(strt_indices, end_indices):
             term_df.loc[strt:end,'temporary'] = 'strt'
         term_df['ign_time_igndata'] = 0
-        term_df.loc[~term_df['temporary'].isnull(),'ign_time_igndata'] = term_df['total_time']  
+        term_df.loc[~term_df['temporary'].isnull(),'ign_time_igndata'] = term_df['total_time']
     term_df.drop(['temporary','Ign_Indicator','Ign_Indicator2'],axis=1,inplace=True)
     return pd.DataFrame(term_df)
     # else:
@@ -508,7 +508,7 @@ if __name__ == '__main__':
         final_df2['date1'] = final_df2['start_time'].dt.date
         start_time = pd.to_datetime('22:00:00').time()
         final_df2['date1'] = final_df2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
-        
+
         print('Iteration 2 : Modification of even IDs ign for single in-between occurrences and Refuel/Ign attributes add')
         final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list)])
         final_df_dict=final_df2.to_dict('records')
@@ -516,7 +516,7 @@ if __name__ == '__main__':
         print('Iteration 3: Modification of IDs based on Thresholds')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
-        
+
         print('Iteration 4: Fresh Summary Calculation')
         fresh_summary_df = fresh_summary(final_df2)
 
@@ -525,7 +525,7 @@ if __name__ == '__main__':
         final_df2['end_time'] = (final_df2['end_time'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
         print('Output Files have been generated successfully! Looking for output paths to save... ')
 
-        #  If NO Output Paths are given
+        # If NO Output Paths are given
         if len(sys.argv) == 2:
             final_df2.to_csv('ID_event_data.csv')
             fresh_summary_df.to_csv('ID_fresh_summary.csv')
