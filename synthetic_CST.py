@@ -96,7 +96,7 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
             refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
             if ind !=0:
                 level = term_df.loc[ind-1,'currentFuelVolumeTank1']
-                term_df.loc[ind,'currentFuelVolumeTank1'] = level 
+                term_df.loc[ind,'currentFuelVolumeTank1'] = level
                 refuel_end_level = level + term_df.loc[ind,'Quantity']
                 refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
                                                     term_df.loc[ind-1,'cum_distance'],term_df.loc[ind+1,'cum_distance'],
@@ -365,7 +365,7 @@ if __name__ == '__main__':
 
       # Ignition Master Data Read and Pre processing
 
-      ign = pyreadr.read_r(infile_igtn)[None]      
+      ign = pyreadr.read_r(infile_igtn)[None]
       ign.rename(columns={'stop':'end'}, inplace=True)
       ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
@@ -395,8 +395,8 @@ if __name__ == '__main__':
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
 
-      
-      # Synthetic Algorithm Iterations 
+
+      # Synthetic Algorithm Iterations
 
       print("Iteration 1: Refuel concatenation to CST")
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
@@ -421,7 +421,7 @@ if __name__ == '__main__':
       new_cst_1['date1'] = new_cst_1['ts'].dt.date
       start_time = pd.to_datetime('22:00:00').time()
       new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
-      new_cst_1['hour'] = new_cst_1['start_time'].dt.hour
+      new_cst_1['hour'] = new_cst_1['ts'].dt.hour
       new_cst_1['shift1'] = new_cst_1['hour'].progress_apply(categorize_shift)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       print('Synthetic CST has been generated successfully! ')
