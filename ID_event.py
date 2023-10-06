@@ -367,8 +367,6 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
     endtime_list = cst_term[cst_term['Refuel_status']=='Refuel_end']['ts'].tolist()
     quantities = cst_term[cst_term['Refuel_status']=='Refuel']['Quantity'].tolist()
     tx_list = cst_term[cst_term['Refuel_status']=='Refuel']['TxId'].tolist()
-    ign_strt_list = cst_term[cst_term['Indicator']=='strt']['ts'].tolist()
-    ign_end_list = cst_term[cst_term['Indicator']=='end']['ts'].tolist()
     for timestamp,endtime,quantity,txid in zip(timestamp_list,endtime_list,quantities,tx_list):
             timestamp = pd.to_datetime(timestamp);end = pd.to_datetime(endtime)
             mask = (timestamp >= term_df['start_time']) & (timestamp < term_df['end_time'])
@@ -388,6 +386,8 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
         term_df['Refuel_TxID'] = txid_list_ID
 
     ## Final Synthetic Ignition Column Calculation
+    ign_strt_list = cst_term[cst_term['Indicator']=='strt']['ts'].tolist()
+    ign_end_list = cst_term[cst_term['Indicator']=='end']['ts'].tolist()
     term_df['Ign_Indicator'] = np.nan
     for strt,ignend in zip(ign_strt_list,ign_end_list):
         ign_strt = pd.to_datetime(strt);ign_end=pd.to_datetime(ignend)
@@ -403,10 +403,11 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
     term_df.loc[track,'Ign_Indicator']=np.nan
     strt_indices = np.where(term_df['Ign_Indicator'] == 'strt')[0]
     end_indices = np.where(term_df['Ign_Indicator'] == 'end')[0]
+    if (len(end_indices)>len(strt_indices)) and (strt_indices[0]>end_indices[0]): end_indices = end_indices[1:]
     for strt, end in zip(strt_indices, end_indices):
         term_df.loc[strt:end,'temporary'] = 'strt'
     term_df['final_ign_time'] = 0
-    term_df.loc[term_df['temporary'].isnull()==False,'final_ign_time'] = term_df['total_time']
+    term_df.loc[~term_df['temporary'].isnull(),'final_ign_time'] = term_df['total_time']
 
     ## Ign Master Calculation
     term_df['Ign_Indicator2'] = np.nan
@@ -418,20 +419,21 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
             mask = (ign_strt >= term_df['start_time']) & (ign_strt < term_df['end_time'])
             mask2 = (ign_end > term_df['start_time']) & (ign_end <= term_df['end_time'])
             term_df.loc[mask,'Ign_Indicator2'] = 'strt';term_df.loc[mask2,'Ign_Indicator2'] = 'end'
-        term_df['temporary'] = term_df['Ign_Indicator2'].copy()
+        term_df['temporary2'] = term_df['Ign_Indicator2'].copy()
         end_indices = np.where(term_df['Ign_Indicator2'] == 'end')[0]
         track=[]
         for i in range(len(end_indices)-1):
-            if 'strt' not in term_df.loc[end_indices[i]:end_indices[i+1]]['Ign_Indicator'].tolist():
+            if 'strt' not in term_df.loc[end_indices[i]:end_indices[i+1]]['Ign_Indicator2'].tolist():
                 track.append(end_indices[i+1])
         term_df.loc[track,'Ign_Indicator2']=np.nan
         strt_indices = np.where(term_df['Ign_Indicator2'] == 'strt')[0]
         end_indices = np.where(term_df['Ign_Indicator2'] == 'end')[0]
+        if (len(end_indices)>len(strt_indices)) and (strt_indices[0]>end_indices[0]): end_indices = end_indices[1:]
         for strt, end in zip(strt_indices, end_indices):
-            term_df.loc[strt:end,'temporary'] = 'strt'
+            term_df.loc[strt:end,'temporary2'] = 'strt'
         term_df['ign_time_igndata'] = 0
-        term_df.loc[~term_df['temporary'].isnull(),'ign_time_igndata'] = term_df['total_time']
-    term_df.drop(['temporary','Ign_Indicator','Ign_Indicator2'],axis=1,inplace=True)
+        term_df.loc[~term_df['temporary2'].isnull(),'ign_time_igndata'] = term_df['total_time']
+    # term_df.drop(['temporary','temporary2','Ign_Indicator','Ign_Indicator2'],axis=1,inplace=True)
     return pd.DataFrame(term_df)
     # else:
     #     term_df['Refuel_TxID'] = 'NaN';term_df['Refuel_Qty'] = 'NaN';term_df[['Ign_strt','Ign_end']] = 'NaN'
@@ -510,8 +512,8 @@ if __name__ == '__main__':
 
         print('Iteration 2 : Modification of even IDs ign for single in-between occurrences and Refuel/Ign attributes add')
         final_df2 = pd.concat([even_b_odd_refuel_add_to_ID(i) for i in tqdm(termid_list)])
+        
         final_df_dict=final_df2.to_dict('records')
-
         print('Iteration 3: Modification of IDs based on Thresholds')
         final_df2 = pd.DataFrame([final_threshold_modification(i) for i in tqdm(final_df_dict)])
         final_df2['veh_status'] = final_df2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)

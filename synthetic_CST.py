@@ -421,6 +421,8 @@ if __name__ == '__main__':
       new_cst_1['date1'] = new_cst_1['ts'].dt.date
       start_time = pd.to_datetime('22:00:00').time()
       new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
+      new_cst_1['hour'] = new_cst_1['start_time'].dt.hour
+      new_cst_1['shift1'] = new_cst_1['hour'].progress_apply(categorize_shift)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       print('Synthetic CST has been generated successfully! ')
       new_cst_1 = new_cst_1[(new_cst_1['ts']>=start_time1)&(new_cst_1['ts']<=end_time1)]
