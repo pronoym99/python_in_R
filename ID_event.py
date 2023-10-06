@@ -388,6 +388,7 @@ def even_b_odd_refuel_add_to_ID(i):          # Refuel - Ignition attributes addi
         term_df['Refuel_TxID'] = txid_list_ID
 
     ## Final Synthetic Ignition Column Calculation
+    term_df['Ign_Indicator'] = np.nan
     for strt,ignend in zip(ign_strt_list,ign_end_list):
         ign_strt = pd.to_datetime(strt);ign_end=pd.to_datetime(ignend)
         mask3 = (ign_strt >= term_df['start_time']) & (ign_strt < term_df['end_time'])
@@ -462,31 +463,30 @@ def fresh_summary(datam):
 
 
 if __name__ == '__main__':
-    # print(len(sys.argv))
-    # new_cst_1 = pd.read_csv('../OUTPUT_DATA/oct/3_Oct_Synthetic_data.csv')
+
+       # new_cst_1 = pd.read_csv('../OUTPUT_DATA/oct/5_Oct_Synthetic_data.csv')
     # new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-    # # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-10-01 06:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-10-01 14:00:00'))]
+    # # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-10-02 06:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-10-02 14:00:00'))]
     # ign = pyreadr.read_r('../INPUT_DATA/data/oct/dtign_upto_3rdOct.RDS')[None]
     # ign.rename(columns={'stop':'end'},inplace=True)
     # ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
     # ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
     # ign = ign[(ign['strt']>=new_cst_1['ts'].min())&(ign['end']<=new_cst_1['ts'].max())]
     # ign['termid'] = ign['termid'].astype(int)
-    # trial =final_id_grouping(1204000257)
+    # trial =final_id_grouping(1204000308)
     # trial1 = additional_parameters(trial)
     # trial2 = trial1.copy()
-    # trial2['final_ign_time'] = trial2.apply(select_ign_time, axis=1)
+    # # trial2['final_ign_time'] = trial2.apply(select_ign_time, axis=1)
     # trial2['date1'] = trial2['start_time'].dt.date
     # start_time = pd.to_datetime('22:00:00').time()
     # trial2['date1'] = trial2.apply(lambda row: row['date1'] if start_time > row['start_time'].time() else (row['start_time'] + pd.DateOffset(days=1)).date(), axis=1)
     # trial2['veh_status'] = trial2.apply(lambda x:'stationary' if x['ID_status'] in ('id3','id5','id6','id8') else 'movement',axis=1)
     # # trial2.to_csv('../OUTPUT_DATA/sept/266_bug.csv')
-    # trial2 = even_b_odd_refuel_add_to_ID(1204000257)
+    # trial2 = even_b_odd_refuel_add_to_ID(1204000308)
     # trial_dict=trial2.to_dict('records')
     # trial2 = pd.DataFrame([final_threshold_modification(i) for i in trial_dict])
     # tr_fs = fresh_summary(trial2)
     # print('Done!')
-
 
     if (len(sys.argv) < 2) or (Path(sys.argv[1]).suffix!='.csv'):
         print('InputFileError: Kindly pass the Enriched cst in csv format.\nExiting...')
@@ -496,12 +496,11 @@ if __name__ == '__main__':
 
         new_cst_1 = pd.read_csv(enriched_cst)
         new_cst_1['ts'] = pd.to_datetime(new_cst_1['ts_unix'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
-        # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-07 14:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-08 14:00:00'))]
-
+        # new_cst_1 = new_cst_1[(new_cst_1['ts']>=pd.to_datetime('2023-09-07 14:00:00'))&(new_cst_1['ts']<=pd.to_datetime('2023-09-08 14:00:00'))]       
         termid_list = new_cst_1[new_cst_1['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()  #new_cst_1['termid'].unique().tolist()
+        
         print('Iteration 1: generating ID Buckets')
         final_df = pd.concat([final_id_grouping(i) for i in tqdm(termid_list)])
-
         final_df1 = additional_parameters(final_df)
         final_df2 = final_df1.copy()
         # final_df2['final_ign_time'] = final_df2.apply(select_ign_time, axis=1)

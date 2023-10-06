@@ -143,10 +143,11 @@ def melt_conc(i):                         # For injecting original ignition poin
     if len(ign_term)!=0:
         melt_ign = pd.melt(ign_term,value_vars=['strt','end'],var_name='Indicator',value_name='ts')
         melt_ign['termid']=str(i);melt_ign['regNumb']=ign_term.head(1)['veh'].item()
-        melt_ign.sort_values(by='ts',inplace=True)
-        cst_1 = pd.concat([cst_term,melt_ign],axis=0)
-        cst_1.sort_values(by=['ts'],inplace=True)
-        cst_1.reset_index(drop=True,inplace=True)
+        # melt_ign.sort_values(by='ts',inplace=True)
+        cst_1 = pd.concat([cst_term,melt_ign],ignore_index=True)
+        cst_1['ts'] = pd.to_datetime(cst_1['ts'])
+        cst_1.sort_values(by='ts',inplace=True)
+        # cst_1.reset_index(drop=True,inplace=True)
         end_indices = cst_1[cst_1['Indicator'] == 'end'].index
     #     cst_1.loc[end_indices, 'Distance'] = cst_1['Distance'].shift(-1)
         cst_1.loc[end_indices, 'cum_distance'] = cst_1['cum_distance'].shift(-1)
@@ -223,20 +224,22 @@ def find_contiguous_groups_indices(binary_list):     # consecutive 1s bucketings
 
 def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt' 'end'
     # =>  datam : Cst data
-    indices_strt = list(datam.loc[datam['Indicator'] == 'strt'].index)
-    indices_end = list(datam.loc[datam['Indicator'] == 'end'].index)
-    results = sorted(indices_end + indices_strt[1 if indices_end[0] > indices_strt[0] else 0:])
-    results = results[:-1] if len(results) % 2 else results
-    results = [(results[i] + 1, results[i+1] - 1) for i in range(0, len(results) - 1, 2)]
-    results = [i for i in results if i[1]-i[0]>2]
+    # indices_strt = list(datam.loc[datam['Indicator'] == 'strt'].index)
+    # indices_end = list(datam.loc[datam['Indicator'] == 'end'].index)
+    # results = sorted(indices_end + indices_strt[1:])
+    # results = results[:-1] if len(results) % 2 else results     indices_strt_end[i] = 500 , indices_strt_end[i+1] = 503
 
+    indices_strt_end = datam[~datam['Indicator'].isnull()].index.tolist()[1:] + [len(datam)-1]
+    results = [(indices_strt_end[i]+1,indices_strt_end[i+1]-1) for i in range(0, len(indices_strt_end) - 1, 2) if (indices_strt_end[i+1] - indices_strt_end[i])>2]
+    # results.append(len(datam)-1)
+    # results = [(results[i] + 1, results[i+1] - 1) for i in range(0, len(results) - 1, 2)]
+    # results = [i for i in results if i[1]-i[0]>2]
     for x, y in results:
         res = [(l[0] + x, l[1] + x) for l in find_contiguous_groups_indices(datam.loc[x:y, 'currentIgn'])]
         datam.loc[[x for x, _ in res], 'Indicator'] = 'strt'
         datam.loc[[y for _, y in res], 'Indicator'] = 'end'
 
     return datam
-
 
 
 def shift_custom_function(group):                    # Injection of shift points and Fuel/distances accordingly  ; Running for each date-group inside each termid group
@@ -352,20 +355,33 @@ if __name__ == '__main__':
           cst = pd.read_csv(infile_cst)
         #   cst['ts'] = cst['ts'].dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
           cst['ts'] = pd.to_datetime(cst['ts'])
+
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
       cst.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
-      ign = pyreadr.read_r(infile_igtn)[None]
       faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
       cst = cst[~cst['regNumb'].isin(faulty_fuel)]
       start_time1 = cst['ts'].min();end_time1=cst['ts'].max()
+
+
+      # Ignition Master Data Read and Pre processing
+
+      ign = pyreadr.read_r(infile_igtn)[None]      
       ign.rename(columns={'stop':'end'}, inplace=True)
       ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+      ign.sort_values(by=['termid','strt','end'],inplace=True)
+      ign.drop_duplicates(subset=['termid','strt'],keep='last',inplace=True)
+      ign.drop_duplicates(subset=['termid','end'],keep='first',inplace=True)
       ign = ign[(ign['strt']>=cst['ts'].min())&(ign['end']<=cst['ts'].max())]
       ign['termid'] = ign['termid'].astype(int)
       ign = ign[['termid','veh','strt','end']]
+
       termid_list = cst['termid'].unique().tolist()
       regNumb_list = cst['regNumb'].unique().tolist()
+
+
+      # Hectronics Refuel Data Read
+
       disp = pd.read_csv(disp)
       disp.rename(columns={'Vehicle Number':'regNumb','Date':'date','Time Stamp':'ts'},inplace=True)
       disp=disp[disp['regNumb'].isin(cst['regNumb'])][['ts','date','Station Name','regNumb','Quantity','TxId']]
@@ -379,7 +395,9 @@ if __name__ == '__main__':
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
 
-                                                           ### Upto this execution time
+      
+      # Synthetic Algorithm Iterations 
+
       print("Iteration 1: Refuel concatenation to CST")
       disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
 
@@ -388,6 +406,8 @@ if __name__ == '__main__':
 
       print("Iteration 3: Ignition Concatenation to CST")
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
+      new_cst.to_csv('../OUTPUT_DATA/oct/Before_synth_data.csv')
+      new_cst.sort_values(by=['termid','ts'],inplace=True)
       new_cst = new_cst.reset_index(drop=True)
       new_cst = synthetic_ignition(new_cst)
       new_cst['termid']=new_cst['termid'].astype(int)
@@ -397,7 +417,6 @@ if __name__ == '__main__':
       print("Iteration 4: Shift times injection to CST")
       new_cst_1=grouped.progress_apply(custom_function)
       new_cst_1=new_cst_1.reset_index(drop=True)
-    #   new_cst_1['date'] = new_cst_1['ts'].dt.date
       new_cst_1.drop(['Time_diff','Station Name','timestr','date'],axis=1,inplace=True)
       new_cst_1['date1'] = new_cst_1['ts'].dt.date
       start_time = pd.to_datetime('22:00:00').time()
@@ -405,6 +424,7 @@ if __name__ == '__main__':
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       print('Synthetic CST has been generated successfully! ')
       new_cst_1 = new_cst_1[(new_cst_1['ts']>=start_time1)&(new_cst_1['ts']<=end_time1)]
+      new_cst_1.drop(['ts'],axis=1,inplace=True)
     # Error Logging for Output Files
       if len(sys.argv) == 4:
         new_cst_1.to_csv('New_Synthetic_CST.csv')
