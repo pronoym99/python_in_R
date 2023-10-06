@@ -406,7 +406,6 @@ if __name__ == '__main__':
 
       print("Iteration 3: Ignition Concatenation to CST")
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
-      new_cst.to_csv('../OUTPUT_DATA/oct/Before_synth_data.csv')
       new_cst.sort_values(by=['termid','ts'],inplace=True)
       new_cst = new_cst.reset_index(drop=True)
       new_cst = synthetic_ignition(new_cst)
@@ -416,6 +415,7 @@ if __name__ == '__main__':
 
       print("Iteration 4: Shift times injection to CST")
       new_cst_1=grouped.progress_apply(custom_function)
+
       new_cst_1=new_cst_1.reset_index(drop=True)
       new_cst_1.drop(['Time_diff','Station Name','timestr','date'],axis=1,inplace=True)
       new_cst_1['date1'] = new_cst_1['ts'].dt.date
