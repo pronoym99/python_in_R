@@ -7,7 +7,6 @@ on:
       - main
     paths:
       - 'synthetic_CST.py'
-      - 'dist_allmods.py'
       - 'ID_event.py'
 
 jobs:
@@ -26,7 +25,7 @@ jobs:
           changed_files=()
           IFS=$'\n'
           for file in $(git diff --name-only HEAD~1 HEAD); do
-            if [[ "$file" == *"dist_allmods.py"* || "$file" == *"synthetic_CST.py"* || "$file" == *"ID_event.py"* ]]; then
+            if [[ "$file" == *"synthetic_CST.py"* || "$file" == *"ID_event.py"* ]]; the
               changed_files+=("$file")
           fi
           done

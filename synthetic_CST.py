@@ -93,14 +93,15 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
             if ind !=0:
                 level = term_df.loc[ind-1,'currentFuelVolumeTank1']
                 term_df.loc[ind,'currentFuelVolumeTank1'] = level 
-                refuel_end_level = level + j['Quantity']    #term_df.loc[ind,'Quantity']
+                refuel_end_level = level + term_df.loc[ind,'Quantity'] 
+                
                 refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
                                                     term_df.loc[ind-1,'cum_distance'],term_df.loc[ind+1,'cum_distance'],
-                                                    j['ts'])    #term_df.loc[ind,'ts']
+                                                    term_df.loc[ind,'ts'])    
                 term_df.loc[ind,'cum_distance'] = refuel_start_cum_distance
 
-                # injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
-                #                     'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+                injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
+                                    'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
             else:
                 level = term_df.loc[ind+1,'currentFuelVolumeTank1']
                 term_df.loc[ind,'currentFuelVolumeTank1'] = level
@@ -418,7 +419,7 @@ if __name__ == '__main__':
       new_cst_1['date1'] = new_cst_1['ts'].dt.date
       start_time = pd.to_datetime('22:00:00').time()
       new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
-      new_cst_1['hour'] = new_cst_1['start_time'].dt.hour
+      new_cst_1['hour'] = new_cst_1['ts'].dt.hour
       new_cst_1['shift1'] = new_cst_1['hour'].progress_apply(categorize_shift)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       print('Synthetic CST has been generated successfully! ')
