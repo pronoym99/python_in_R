@@ -374,7 +374,8 @@ if __name__ == '__main__':
     # integrated_df1 = final_data_f(integrated_df)
 
     if len(sys.argv) < 3:
-      print('You need to provide the path of the RDS files as input.\nCST data followed by ignition data.')
+      print('NoPathError: You need to provide the path of the RDS files as input. CST data followed by ignition data.\nExiting...')
+      sys.exit(0)
     else:
       infile_cst, infile_igtn = Path(sys.argv[1]), Path(sys.argv[2])
 
@@ -387,21 +388,16 @@ if __name__ == '__main__':
         ign = pyreadr.read_r(infile_igtn)[None]
       else:
         ign = pd.read_csv(infile_igtn)
-      # df['ts'] = pd.to_datetime(df['ts'], utc=True)
-      # print(df.columns)
+
       df.rename(columns={'latitude':'lt', 'longitude':'lg'}, inplace=True)
       df.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
       df['ts'] = pd.to_datetime(df['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       df['date'] = df['ts'].dt.date.astype(str)
       df['hour'] = df['ts'].dt.hour
-    #   faulty_fuel = df[df['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
-    #   df = df[~df['regNumb'].isin(faulty_fuel)]
       termid_list = df['termid'].unique().tolist()
       ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['termid'] = ign['termid'].astype(int)
-    #   dist_allmods(1204000258)
-      termid_list = df[df['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
       integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
@@ -420,12 +416,24 @@ if __name__ == '__main__':
       if 'b_sl' in integrated_df.columns:
         integrated_df.drop(['start_hour','end_hour','b_sl','b_st','a_sl','a_st','b_el','b_et','a_el','a_et'],axis=1,inplace=True)
 
+      # When No Output Data Path is given ~ Save Files into Working Directory
       if len(sys.argv) == 3:
         integrated_df.to_csv('Integrated_dist_allmods.csv')
         fresh_summary_df.to_csv('fresh_summary.csv')
         print('Data saved successfully to the above path')
 
-      # Check whether the last arg is appropriate
+      # When only one output path is given s
+      elif len(sys.argv) == 4:
+        outfile1 = Path(sys.argv[3])
+        # outfile2 = Path(sys.argv[4])
+        if (outfile1.suffix != '.csv'):
+          print('Need to write Output File to a CSV file only\nExiting....')
+          sys.exit(0)
+        integrated_df.to_csv(outfile1)
+        # fresh_summary_df.to_csv(outfile2)
+        print(f' Output Idling is saved successfully to below paths \n {outfile1}')
+
+       # Two output paths are given in correct format
       elif len(sys.argv) == 5:
         outfile1 = Path(sys.argv[3])
         outfile2 = Path(sys.argv[4])
