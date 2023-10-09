@@ -401,7 +401,7 @@ if __name__ == '__main__':
       ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
       ign['termid'] = ign['termid'].astype(int)
     #   dist_allmods(1204000258)
-      termid_list = df[df['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()
+      # termid_list = df[df['regNumb'].str.startswith(tuple(['DJ-','DNP-','DNU-']))]['termid'].unique().tolist()
       final_df = pd.concat([dist_allmods(termid) for termid in tqdm(termid_list)])
       final_df_dict=final_df.to_dict('records')
       integrated_df = pd.concat([ign_time_int(termid) for termid in tqdm(termid_list)])
