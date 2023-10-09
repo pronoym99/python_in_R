@@ -27,15 +27,15 @@ def categorize_shift(hour: int) -> str:
         return 'B'
     return 'C'
 
-def calculate_consecutive_haversine_distances(df):
-    distances = []
-    for i in range(1, len(df)):
-        lat1, lon1 = df.at[i-1, 'lt'], df.at[i-1, 'lg']
-        lat2, lon2 = df.at[i, 'lt'], df.at[i, 'lg']
-        distance = haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
-        distances.append(distance)
-    distances.insert(0,0)
-    return distances
+# def calculate_consecutive_haversine_distances(df):
+#     distances = []
+#     for i in range(1, len(df)):
+#         lat1, lon1 = df.at[i-1, 'lt'], df.at[i-1, 'lg']
+#         lat2, lon2 = df.at[i, 'lt'], df.at[i, 'lg']
+#         distance = haversine((lat1, lon1), (lat2, lon2), unit=Unit.METERS)
+#         distances.append(distance)
+#     distances.insert(0,0)
+#     return distances
 
 def disp_cst(i):                              # Injection of Hecpoll refuel start timings into CST   => i : termid
     term_df = cst[cst['regNumb']==i]
@@ -45,15 +45,11 @@ def disp_cst(i):                              # Injection of Hecpoll refuel star
     if len(term_df['lt']) == 1:
         term_df['Distance'] = 0.0
     else:
-        # lt = sample['lt'].to_numpy()
-        # lg = sample['lg'].to_numpy()
-        # Calculate haversine distances using haversine_vector
         coordinates = np.column_stack((term_df['lt'], term_df['lg']))
         haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
         haversine_distances = np.concatenate(([0.0], haversine_distances))
         term_df['Distance'] = haversine_distances
 
-    # term_df['Distance'] = calculate_consecutive_haversine_distances(term_df)
     term_df['cum_distance'] = term_df['Distance'].cumsum().fillna(0)
     disp_df = disp[disp['regNumb']==i]
     if len(disp_df)!=0:
@@ -93,17 +89,18 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     injected_data=[]
     for ind,j in term_df.iterrows():
         if (j['Refuel_status']=='Refuel'):
-            refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
+            # refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
             if ind !=0:
                 level = term_df.loc[ind-1,'currentFuelVolumeTank1']
                 term_df.loc[ind,'currentFuelVolumeTank1'] = level 
-                refuel_end_level = level + term_df.loc[ind,'Quantity']
+                refuel_end_level = level + j['Quantity']    #term_df.loc[ind,'Quantity']
                 refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
                                                     term_df.loc[ind-1,'cum_distance'],term_df.loc[ind+1,'cum_distance'],
-                                                    term_df.loc[ind,'ts'])
+                                                    j['ts'])    #term_df.loc[ind,'ts']
                 term_df.loc[ind,'cum_distance'] = refuel_start_cum_distance
-                injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
-                                    'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+
+                # injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
+                #                     'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
             else:
                 level = term_df.loc[ind+1,'currentFuelVolumeTank1']
                 term_df.loc[ind,'currentFuelVolumeTank1'] = level
