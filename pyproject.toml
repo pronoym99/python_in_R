@@ -15,6 +15,7 @@ dependencies = [
     "pytz>=2023.3",
     "pyreadr>=0.4.9",
     "matplotlib>=3.7.2",
+    "rpy2>=3.5.14",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
