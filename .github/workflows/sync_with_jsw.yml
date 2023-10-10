@@ -25,7 +25,7 @@ jobs:
           changed_files=()
           IFS=$'\n'
           for file in $(git diff --name-only HEAD~1 HEAD); do
-            if [[ "$file" == *"synthetic_CST.py"* || "$file" == *"ID_event.py"* ]]; the
+            if [[ "$file" == *"synthetic_CST.py"* || "$file" == *"ID_event.py"* ]]; then
               changed_files+=("$file")
           fi
           done
