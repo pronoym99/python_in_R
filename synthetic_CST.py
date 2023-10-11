@@ -39,18 +39,17 @@ def categorize_shift(hour: int) -> str:
 
 def disp_cst(i):                              # Injection of Hecpoll refuel start timings into CST   => i : termid
     term_df = cst[cst['regNumb']==i]
-    term_df['Time_diff'] = term_df['ts'].diff().fillna(pd.Timedelta(minutes=0)).dt.total_seconds() / 60
     term_df.reset_index(drop=True,inplace=True)
 
-    if len(term_df['lt']) == 1:
-        term_df['Distance'] = 0.0
-    else:
-        coordinates = np.column_stack((term_df['lt'], term_df['lg']))
-        haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
-        haversine_distances = np.concatenate(([0.0], haversine_distances))
-        term_df['Distance'] = haversine_distances
+    # if len(term_df['lt']) == 1:
+    #     term_df['Distance'] = 0.0
+    # else:
+    #     coordinates = np.column_stack((term_df['lt'], term_df['lg']))
+    #     haversine_distances = haversine_vector(coordinates[:-1], coordinates[1:], Unit.METERS)
+    #     haversine_distances = np.concatenate(([0.0], haversine_distances))
+    #     term_df['Distance'] = haversine_distances
 
-    term_df['cum_distance'] = term_df['Distance'].cumsum().fillna(0)
+    # term_df['cum_distance'] = term_df['Distance'].cumsum().fillna(0)
     disp_df = disp[disp['regNumb']==i]
     if len(disp_df)!=0:
         con = pd.concat([term_df,disp_df],axis=0)
@@ -89,7 +88,7 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     injected_data=[]
     for ind,j in term_df.iterrows():
         if (j['Refuel_status']=='Refuel'):
-            # refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
+            refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
             if ind !=0:
                 level = term_df.loc[ind-1,'currentFuelVolumeTank1']
                 term_df.loc[ind,'currentFuelVolumeTank1'] = level
@@ -355,9 +354,9 @@ if __name__ == '__main__':
           cst['ts'] = pd.to_datetime(cst['ts'])
 
       cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
-      cst.dropna(subset=['termid', 'lt', 'lg'], inplace=True)
-      faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
-      cst = cst[~cst['regNumb'].isin(faulty_fuel)]
+      cst.dropna(subset=('termid', 'currentIgn', 'cum_distance', 'currentFuelVolumeTank1'), inplace=True)
+      # faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
+      # cst = cst[~cst['regNumb'].isin(faulty_fuel)]
       start_time1 = cst['ts'].min();end_time1=cst['ts'].max()
 
 
@@ -388,7 +387,8 @@ if __name__ == '__main__':
         sys.exit(0)
     #   if len(disp)!=0:
       disp['Refuel_status'] = 'Refuel'
-      disp['ts'] = pd.to_datetime(disp['ts'], format='%m/%d/%Y, %I:%M:%S %p')
+      disp['ts']=disp['ts'].str.replace(' IST', '')
+      disp['ts'] = pd.to_datetime(disp['ts'])
       disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
       disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
       disp = disp[disp['Quantity']>20]
@@ -415,12 +415,13 @@ if __name__ == '__main__':
       new_cst_1=grouped.progress_apply(custom_function)
 
       new_cst_1=new_cst_1.reset_index(drop=True)
-      new_cst_1.drop(['Time_diff','Station Name','timestr','date'],axis=1,inplace=True)
+      new_cst_1.drop(['Station Name', 'date'],axis=1,inplace=True)
       new_cst_1['date1'] = new_cst_1['ts'].dt.date
       start_time = pd.to_datetime('22:00:00').time()
       new_cst_1['date1'] = new_cst_1.apply(lambda row: row['date1'] if start_time > row['ts'].time() else (row['ts'] + pd.DateOffset(days=1)).date(), axis=1)
       new_cst_1['hour'] = new_cst_1['ts'].dt.hour
       new_cst_1['shift1'] = new_cst_1['hour'].progress_apply(categorize_shift)
+      new_cst_1.drop('hour', axis=1, inplace=True)
       new_cst_1['ts_unix'] = (new_cst_1['ts'] - pd.Timestamp("1970-01-01 05:30:00")) // pd.Timedelta('1s')
       print('Synthetic CST has been generated successfully! ')
       new_cst_1 = new_cst_1[(new_cst_1['ts']>=start_time1)&(new_cst_1['ts']<=end_time1)]
