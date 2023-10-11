@@ -62,6 +62,8 @@ def disp_cst(i):                              # Injection of Hecpoll refuel star
         duplicated = [int(i) - 1 for i in con[con['ts'].duplicated()].index.tolist()]
         for l in duplicated:
             con.loc[l,'Refuel_status'] = con.loc[l+1,'Refuel_status']
+            con.loc[l,'Quantity'] = con.loc[l+1,'Quantity']
+            con.loc[l,'TxId'] = con.loc[l+1,'TxId']
         con.drop_duplicates(subset=['ts'],keep='first',inplace=True)
         return con
     else:
@@ -378,7 +380,6 @@ if __name__ == '__main__':
 
       termid_list = cst['termid'].unique().tolist()
       regNumb_list = cst['regNumb'].unique().tolist()
-
 
       # Hectronics Refuel Data Read
 
