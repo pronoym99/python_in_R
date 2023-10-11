@@ -115,8 +115,11 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
         if j['Refuel_status']=='Refuel_end':
             a = concat_df[concat_df['ts']<pd.to_datetime(j['ts'])]
             b = concat_df[concat_df['ts']>pd.to_datetime(j['ts'])]
-            end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a.tail(1)['cum_distance'].item(),
-                                       b.head(1)['cum_distance'].item(),j['ts'])
+            if len(b)!=0:
+                end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a.tail(1)['cum_distance'].item(),
+                                        b.head(1)['cum_distance'].item(),j['ts'])
+            else:
+                end_cum_distance = a.tail(1)['cum_distance'].item()
             concat_df.loc[ind,'cum_distance'] = end_cum_distance
 
     return concat_df
@@ -221,16 +224,10 @@ def find_contiguous_groups_indices(binary_list):     # consecutive 1s bucketings
 
 def synthetic_ignition(datam):      # Filling up Indicator column with cst 'strt' 'end'
     # =>  datam : Cst data
-    # indices_strt = list(datam.loc[datam['Indicator'] == 'strt'].index)
-    # indices_end = list(datam.loc[datam['Indicator'] == 'end'].index)
-    # results = sorted(indices_end + indices_strt[1:])
-    # results = results[:-1] if len(results) % 2 else results     indices_strt_end[i] = 500 , indices_strt_end[i+1] = 503
 
     indices_strt_end = datam[~datam['Indicator'].isnull()].index.tolist()[1:] + [len(datam)-1]
     results = [(indices_strt_end[i] + 1,indices_strt_end[i+1] - 1) for i in range(0, len(indices_strt_end) - 1, 2) if (indices_strt_end[i+1] - indices_strt_end[i]) > 2]
-    # results.append(len(datam)-1)
-    # results = [(results[i] + 1, results[i+1] - 1) for i in range(0, len(results) - 1, 2)]
-    # results = [i for i in results if i[1]-i[0]>2]
+
     for x, y in results:
         res = [(l[0] + x, l[1] + x) for l in find_contiguous_groups_indices(datam.loc[x:y, 'currentIgn'])]
         datam.loc[[x for x, _ in res], 'Indicator'] = 'strt'
