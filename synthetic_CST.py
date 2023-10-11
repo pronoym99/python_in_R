@@ -103,7 +103,7 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
                 refuel_end_level = level + term_df.loc[ind,'Quantity']
 
                 refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
-                                                    term_df.loc[ind-1,'cum_distance'],term_df.loc[ind+1,'cum_distance'],
+                                                    term_df['cum_distance'].iloc[:ind].dropna().iloc[-1],term_df['cum_distance'].iloc[ind:].dropna().iloc[0],
                                                     term_df.loc[ind,'ts'])
                 term_df.loc[ind,'cum_distance'] = refuel_start_cum_distance
 
@@ -117,6 +117,7 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     injected_df = pd.DataFrame(injected_data)
 #     normal_df=normal_df.append(term_df)
     concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
+    concat_df['ts'] = pd.to_datetime(concat_df['ts'])
     concat_df.sort_values(by=['termid','ts'],inplace=True)
     concat_df.reset_index(drop=True,inplace=True)
     for ind,j in concat_df.iterrows():
@@ -124,10 +125,10 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
             a = concat_df[concat_df['ts']<pd.to_datetime(j['ts'])]
             b = concat_df[concat_df['ts']>pd.to_datetime(j['ts'])]
             if len(b)!=0:
-                end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a.tail(1)['cum_distance'].item(),
-                                        b.head(1)['cum_distance'].item(),j['ts'])
+                end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a['cum_distance'].dropna().iloc[-1],
+                                        b['cum_distance'].dropna().iloc[0],j['ts'])
             else:
-                end_cum_distance = a.tail(1)['cum_distance'].item()
+                end_cum_distance = a['cum_distance'][a['cum_distance'] != 0].iloc[-1]
             concat_df.loc[ind,'cum_distance'] = end_cum_distance
 
     return concat_df
