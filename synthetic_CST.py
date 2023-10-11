@@ -57,6 +57,12 @@ def disp_cst(i):                              # Injection of Hecpoll refuel star
         con.loc[con['termid'].isnull(),'termid']=term_df.head(1)['termid'].item()
         # con['mine'] = term_df.head(1)['mine'].item()
         # con['class'] = term_df.head(1)['class'].item()
+        con.sort_values(by=['ts','Refuel_status'],na_position='first',inplace=True)
+        con.reset_index(drop=True,inplace=True)
+        duplicated = [int(i) - 1 for i in con[con['ts'].duplicated()].index.tolist()]
+        for l in duplicated:
+            con.loc[l,'Refuel_status'] = con.loc[l+1,'Refuel_status']
+        con.drop_duplicates(subset=['ts'],keep='first',inplace=True)
         return con
     else:
         return term_df
@@ -330,6 +336,57 @@ def custom_function(group):                         #  Running for each termid g
 
 if __name__ == '__main__':
 
+#     cst = pyreadr.read_r('../INPUT_DATA/data/oct/cst_1_6Oct.RDS')[None]
+#     cst['ts'] = pd.to_datetime(cst['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+#     cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
+#     cst.dropna(subset=('termid', 'currentIgn', 'cum_distance', 'currentFuelVolumeTank1'), inplace=True)
+#     # faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
+#     # cst = cst[~cst['regNumb'].isin(faulty_fuel)]
+#     start_time1 = cst['ts'].min();end_time1=cst['ts'].max()
+
+
+#     # Ignition Master Data Read and Pre processing
+
+#     ign = pyreadr.read_r('../INPUT_DATA/data/oct/dtign_upto9Oct.RDS')[None]
+#     ign.rename(columns={'stop':'end'}, inplace=True)
+#     ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+#     ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+#     ign.sort_values(by=['termid','strt','end'],inplace=True)
+#     ign.drop_duplicates(subset=['termid','strt'],keep='last',inplace=True)
+#     ign.drop_duplicates(subset=['termid','end'],keep='first',inplace=True)
+#     ign = ign[(ign['strt']>=cst['ts'].min())&(ign['end']<=cst['ts'].max())]
+#     ign['termid'] = ign['termid'].astype(int)
+#     ign = ign[['termid','veh','strt','end']]
+
+#     termid_list = cst['termid'].unique().tolist()
+#     regNumb_list = cst['regNumb'].unique().tolist()
+#     termid_list = [1204000487];regNumb_list=['WSNP-2201']
+
+#     # Hectronics Refuel Data Read
+
+#     disp = pd.read_csv('../INPUT_DATA/data/oct/hecpoll_1_11Oct.csv')
+#     disp.rename(columns={'Vehicle Number':'regNumb','Date':'date','Time Stamp':'ts'},inplace=True)
+#     disp=disp[disp['regNumb'].isin(cst['regNumb'])][['ts','date','Station Name','regNumb','Quantity','TxId']]
+# #   if len(disp)!=0:
+#     disp['Refuel_status'] = 'Refuel'
+#     disp['ts']=disp['ts'].str.replace(' IST', '')
+#     disp['ts'] = pd.to_datetime(disp['ts'])
+#     disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
+#     disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
+#     disp = disp[disp['Quantity']>20]
+#     print("Iteration 1: Refuel concatenation to CST")
+#     disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
+
+#     print("Iteration 2: Refuel end times injection into CST")
+#     disp_cst2 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
+
+#     print("Iteration 3: Ignition Concatenation to CST")
+#     new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
+#     new_cst.sort_values(by=['termid','ts'],inplace=True)
+#     new_cst = new_cst.reset_index(drop=True)
+
+
+
     num_cores = cpu_count()
     if len(sys.argv) < 4:
       print('InputFilesError: You need to provide the path of RDS cst/ign files and Hectronic csv as input.\nCST data followed by ignition data followed by Hectronics Dispense Data.\nExiting....')
@@ -403,12 +460,14 @@ if __name__ == '__main__':
       new_cst = pd.concat([melt_conc(termid) for termid in tqdm(termid_list)])
       new_cst.sort_values(by=['termid','ts'],inplace=True)
       new_cst = new_cst.reset_index(drop=True)
+    #   tr=new_cst[new_cst['termid']==1204000487]
+    #   print(tr[(tr['ts']>=pd.to_datetime('2023-10-01 12:00:00'))&(tr['ts']<=pd.to_datetime('2023-10-01 12:30:00'))][['ts','Indicator','Is_Ignition']])
       new_cst = synthetic_ignition(new_cst)
       new_cst['termid']=new_cst['termid'].astype(int)
       new_cst['date'] = new_cst['ts'].dt.date
-      grouped = new_cst.groupby('termid')
 
       print("Iteration 4: Shift times injection to CST")
+      grouped = new_cst.groupby('termid')
       new_cst_1=grouped.progress_apply(custom_function)
 
       new_cst_1=new_cst_1.reset_index(drop=True)
