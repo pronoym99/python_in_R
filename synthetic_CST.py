@@ -78,6 +78,12 @@ def new_fuel(s_time,e_time,s_level,e_level,date):           # For single fuel in
     new_level = s_level+(bucket_size*step_size)
     return new_level
 
+def find_first_peak_index(arr):
+    for i in range(1, len(arr) - 1):
+        if arr[i] >= arr[i - 1] and arr[i] > arr[i + 1]:
+            return i
+    return np.where(np.array(arr) == max(arr))[0][-1]
+
 def refuel_end_injection(i):                        # Injection of Refuel-end points approx 20 mins apart from each start points
     #   => i : termid
 
@@ -88,7 +94,7 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     elif term_df.loc[0,'Refuel_status']=='Refuel':
         term_df.drop(0,axis=0,inplace=True)
     elif term_df.loc[term_df.index[-1],'Refuel_status']=='Refuel':
-        term_df.drop(term_df.index[-1],inplace=True)
+        term_df.drop(term_df.index[-1],inplace=True)    
     else:
         pass
     term_df.reset_index(drop=True,inplace=True)
@@ -96,42 +102,50 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
     injected_data=[]
     for ind,j in term_df.iterrows():
         if (j['Refuel_status']=='Refuel'):
-            refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
+            next_qty_list = term_df.loc[ind+1:ind+31]['currentFuelVolumeTank1'].tolist()
+            first_peak_index = find_first_peak_index(next_qty_list)
+            # refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
             if ind !=0:
                 level = term_df.loc[ind-1,'currentFuelVolumeTank1']
-                term_df.loc[ind,'currentFuelVolumeTank1'] = level
-                refuel_end_level = level + term_df.loc[ind,'Quantity']
+                term_df.loc[ind,'currentFuelVolumeTank1'] = level               # fuel fillup in refuel start times
+                term_df.loc[ind+first_peak_index+1 , 'currentFuelVolumeTank1'] = level + term_df.loc[ind,'Quantity']     # fuel fillup in Refuel end
+                term_df.loc[ind+first_peak_index+1 , 'Refuel_status'] = 'Refuel_end'                                     # status fillup in ''
+                # refuel_end_level = level + term_df.loc[ind,'Quantity']
 
                 refuel_start_cum_distance = new_fuel(term_df.loc[ind-1,'ts'],term_df.loc[ind+1,'ts'],
                                                     term_df['cum_distance'].iloc[:ind].dropna().iloc[-1],term_df['cum_distance'].iloc[ind:].dropna().iloc[0],
                                                     term_df.loc[ind,'ts'])
                 term_df.loc[ind,'cum_distance'] = refuel_start_cum_distance
 
-                injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
-                                    'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+                # injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'].item(),'ts':refuel_end_time,
+                #                     'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+
             else:
                 level = term_df.loc[ind+1,'currentFuelVolumeTank1']
                 term_df.loc[ind,'currentFuelVolumeTank1'] = level
-                refuel_end_level = level + term_df.loc[ind,'Quantity']
-                injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'],'ts':refuel_end_time,'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
-    injected_df = pd.DataFrame(injected_data)
+                term_df.loc[ind+first_peak_index+1 , 'currentFuelVolumeTank1'] = level + term_df.loc[ind,'Quantity']
+                term_df.loc[ind+first_peak_index+1 , 'Refuel_status'] = 'Refuel_end'
+                term_df.loc[ind,'cum_distance'] = term_df.loc[ind+1,'cum_distance'].item()
+                # refuel_end_level = level + term_df.loc[ind,'Quantity']
+                # injected_data.append({'termid':i,'regNumb':term_df.head(1)['regNumb'],'ts':refuel_end_time,'currentFuelVolumeTank1':refuel_end_level,'Refuel_status':'Refuel_end'})
+    # injected_df = pd.DataFrame(injected_data)
 #     normal_df=normal_df.append(term_df)
-    concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
-    concat_df['ts'] = pd.to_datetime(concat_df['ts'])
-    concat_df.sort_values(by=['termid','ts'],inplace=True)
-    concat_df.reset_index(drop=True,inplace=True)
-    for ind,j in concat_df.iterrows():
-        if j['Refuel_status']=='Refuel_end':
-            a = concat_df[concat_df['ts']<pd.to_datetime(j['ts'])]
-            b = concat_df[concat_df['ts']>pd.to_datetime(j['ts'])]
-            if len(b)!=0:
-                end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a['cum_distance'].dropna().iloc[-1],
-                                        b['cum_distance'].dropna().iloc[0],j['ts'])
-            else:
-                end_cum_distance = a['cum_distance'][a['cum_distance'] != 0].iloc[-1]
-            concat_df.loc[ind,'cum_distance'] = end_cum_distance
+    # concat_df = pd.concat([term_df,injected_df],axis=0,ignore_index=True)
+    # concat_df['ts'] = pd.to_datetime(concat_df['ts'])
+    term_df.sort_values(by=['ts'],inplace=True)     # concat_df , termid
+    # term_df.reset_index(drop=True,inplace=True)          # concat_df
+    # for ind,j in concat_df.iterrows():
+    #     if j['Refuel_status']=='Refuel_end':
+    #         a = concat_df[concat_df['ts']<pd.to_datetime(j['ts'])]
+    #         b = concat_df[concat_df['ts']>pd.to_datetime(j['ts'])]
+    #         if len(b)!=0:
+    #             end_cum_distance = new_fuel(a.tail(1)['ts'].item(),b.head(1)['ts'].item(),a['cum_distance'].dropna().iloc[-1],
+    #                                     b['cum_distance'].dropna().iloc[0],j['ts'])
+    #         else:
+    #             end_cum_distance = a['cum_distance'][a['cum_distance'] != 0].iloc[-1]
+    #         concat_df.loc[ind,'cum_distance'] = end_cum_distance
 
-    return concat_df
+    return term_df     # concat_df
 
 # def refuel_end_cum_distance(i):                                  # Cumulative Distance interpolation for Refuel end points
 #       # => i : termid
@@ -338,6 +352,51 @@ def custom_function(group):                         #  Running for each termid g
 
 
 if __name__ == '__main__':
+
+#     cst = pyreadr.read_r('../INPUT_DATA/data/oct/cst_1_6Oct.RDS')[None]
+#     cst['ts'] = pd.to_datetime(cst['ts'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+#     cst['date'] = pd.to_datetime(cst['ts']).dt.date.astype(str)
+#     cst.dropna(subset=('termid', 'currentIgn', 'cum_distance', 'currentFuelVolumeTank1'), inplace=True)
+#     # faulty_fuel = cst[cst['currentFuelVolumeTank1'].isnull()]['regNumb'].unique().tolist()
+#     # cst = cst[~cst['regNumb'].isin(faulty_fuel)]
+#     start_time1 = cst['ts'].min();end_time1=cst['ts'].max()
+
+
+#     # Ignition Master Data Read and Pre processing
+
+#     ign = pyreadr.read_r('../INPUT_DATA/data/oct/dtign_upto9Oct.RDS')[None]
+#     ign.rename(columns={'stop':'end'}, inplace=True)
+#     ign['strt'] = pd.to_datetime(ign['IgnON'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+#     ign['end'] = pd.to_datetime(ign['IgnOFF'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+#     ign.sort_values(by=['termid','strt','end'],inplace=True)
+#     ign.drop_duplicates(subset=['termid','strt'],keep='last',inplace=True)
+#     ign.drop_duplicates(subset=['termid','end'],keep='first',inplace=True)
+#     ign = ign[(ign['strt']>=cst['ts'].min())&(ign['end']<=cst['ts'].max())]
+#     ign['termid'] = ign['termid'].astype(int)
+#     ign = ign[['termid','veh','strt','end']]
+
+#     termid_list = cst['termid'].unique().tolist()[:1]
+#     regNumb_list = cst['regNumb'].unique().tolist()[0:1]
+#     # termid_list = [1204000487];regNumb_list=['WSNP-2201']
+
+#     # Hectronics Refuel Data Read
+
+#     disp = pd.read_csv('../INPUT_DATA/data/oct/hecpoll_1_11Oct.csv')
+#     disp.rename(columns={'Vehicle Number':'regNumb','Date':'date','Time Stamp':'ts'},inplace=True)
+#     disp=disp[disp['regNumb'].isin(cst['regNumb'])][['ts','date','Station Name','regNumb','Quantity','TxId']]
+# #   if len(disp)!=0:
+#     disp['Refuel_status'] = 'Refuel'
+#     disp['ts']=disp['ts'].str.replace(' IST', '')
+#     disp['ts'] = pd.to_datetime(disp['ts'])
+#     disp = disp[(disp['ts']>=cst['ts'].min())&(disp['ts']<=cst['ts'].max())]
+#     disp['Quantity'] = disp['Quantity'].str.replace(',','').astype(float)
+#     disp = disp[disp['Quantity']>20]
+#     print("Iteration 1: Refuel concatenation to CST")
+#     disp_cst = pd.concat([disp_cst(i) for i in tqdm(regNumb_list)])
+
+#     print("Iteration 2: Refuel end times injection into CST")
+#     disp_cst2 = pd.concat([refuel_end_injection(i) for i in tqdm(termid_list)])
+
 
     num_cores = cpu_count()
     if len(sys.argv) < 4:
