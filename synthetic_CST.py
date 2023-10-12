@@ -106,8 +106,8 @@ def refuel_end_injection(i):                        # Injection of Refuel-end po
             first_peak_index = find_first_peak_index(next_qty_list)
             # refuel_end_time = term_df.loc[ind,'ts'] + timedelta(minutes=20)
             if ind !=0:
-                level = term_df.loc[ind-1,'currentFuelVolumeTank1']
-                term_df.loc[ind,'currentFuelVolumeTank1'] = level               # fuel fillup in refuel start times
+                level = term_df.loc[ind-2:ind,'currentFuelVolumeTank1'].min()#;term_df.loc[ind-2:ind,'currentFuelVolumeTank1']=level
+                term_df.loc[ind-2:ind,'currentFuelVolumeTank1'] = level               # fuel fillup in refuel start times
                 term_df.loc[ind+first_peak_index+1 , 'currentFuelVolumeTank1'] = level + term_df.loc[ind,'Quantity']     # fuel fillup in Refuel end
                 term_df.loc[ind+first_peak_index+1 , 'Refuel_status'] = 'Refuel_end'                                     # status fillup in ''
                 # refuel_end_level = level + term_df.loc[ind,'Quantity']
